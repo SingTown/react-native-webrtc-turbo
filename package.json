@@ -159,10 +159,8 @@
       "componentProvider": {
         "WebrtcView": "WebrtcView"
       },
-      "ios": {
-        "modulesProvider": {
-          "NativeDatachannelModule": "NativeDatachannelModuleProvider"
-        }
+      "modulesProvider": {
+        "NativeDatachannelModule": "NativeDatachannelModuleProvider"
       }
     }
   },
