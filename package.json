@@ -149,7 +149,7 @@
     ]
   },
   "codegenConfig": {
-    "name": "WebrtcViewSpec",
+    "name": "WebrtcSpec",
     "type": "all",
     "jsSrcsDir": "src",
     "android": {

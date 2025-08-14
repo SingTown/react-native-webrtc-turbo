@@ -1,9 +1,9 @@
 #import "WebrtcView.h"
 
-#import <react/renderer/components/WebrtcViewSpec/ComponentDescriptors.h>
-#import <react/renderer/components/WebrtcViewSpec/EventEmitters.h>
-#import <react/renderer/components/WebrtcViewSpec/Props.h>
-#import <react/renderer/components/WebrtcViewSpec/RCTComponentViewHelpers.h>
+#import <react/renderer/components/WebrtcSpec/ComponentDescriptors.h>
+#import <react/renderer/components/WebrtcSpec/EventEmitters.h>
+#import <react/renderer/components/WebrtcSpec/Props.h>
+#import <react/renderer/components/WebrtcSpec/RCTComponentViewHelpers.h>
 
 #import "RCTFabricComponentsPlugins.h"
 
