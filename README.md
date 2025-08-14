@@ -1,6 +1,8 @@
 # react-native-webrtc-turbo
 
-An attempt at a pure cpp turbo module library
+Turbo WebRTC module for React Native.
+
+This project is under active development and is not yet ready for production use.
 
 ## Installation
 
@@ -8,26 +10,10 @@ An attempt at a pure cpp turbo module library
 npm install react-native-webrtc-turbo
 ```
 
-## Usage
-
-
-```js
-import { multiply } from 'react-native-webrtc-turbo';
-
-// ...
-
-const result = multiply(3, 7);
-```
-
-
 ## Contributing
 
 See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
 
 ## License
 
-MIT
-
----
-
-Made with [create-react-native-library](https://github.com/callstack/react-native-builder-bob)
+[MPL-2.0](https://github.com/SingTown/react-native-webrtc-turbo/blob/main/LICENSE)
