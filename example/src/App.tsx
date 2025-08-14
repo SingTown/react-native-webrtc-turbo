@@ -1,9 +1,12 @@
-import { View, StyleSheet } from 'react-native';
-import { WebrtcView } from 'react-native-webrtc';
+import { View, StyleSheet, Text } from 'react-native';
+import { WebrtcView, NativeDatachannelModule } from 'react-native-webrtc';
+
+const result = NativeDatachannelModule.reverseString('Hello World');
 
 export default function App() {
   return (
     <View style={styles.container}>
+      <Text>{result}</Text>
       <WebrtcView color="#32a852" style={styles.box} />
     </View>
   );
