@@ -16,6 +16,16 @@ Pod::Spec.new do |s|
   s.source_files = "ios/**/*.{h,m,mm,cpp}", "cpp/**/*.{h,cpp}"
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
 
+  # Build libdatachannel xcframework if it doesn't exist
+  s.prepare_command = <<-CMD
+    if [ ! -d "3rdparty/libdatachannel.xcframework" ]; then
+      echo "Building libdatachannel xcframework..."
+      cd 3rdparty && bash build_libdatachannel_ios.sh
+    fi
+  CMD
+
+  s.vendored_frameworks = "3rdparty/libdatachannel.xcframework"
+
 
   install_modules_dependencies(s)
 end
