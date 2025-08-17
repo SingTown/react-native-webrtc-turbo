@@ -1,0 +1,4 @@
+[submodule "3rdparty/libdatachannel"]
+	path = 3rdparty/libdatachannel
+	url = https://github.com/paullouisageneau/libdatachannel.git
+	branch = v0.23.1
