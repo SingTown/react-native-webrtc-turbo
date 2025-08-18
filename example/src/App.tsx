@@ -7,7 +7,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text>{result}</Text>
-      <WebrtcView color="#32a852" style={styles.box} />
+      <WebrtcView trackId={1} style={styles.box} />
     </View>
   );
 }
