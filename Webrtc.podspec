@@ -18,14 +18,24 @@ Pod::Spec.new do |s|
 
   # Build libdatachannel xcframework if it doesn't exist
   s.prepare_command = <<-CMD
+    if [ ! -d "3rdparty/ffmpeg.xcframework" ]; then
+      echo "Building ffmpeg xcframework..."
+      cd 3rdparty && bash build_ffmpeg_ios.sh
+    fi
     if [ ! -d "3rdparty/libdatachannel.xcframework" ]; then
       echo "Building libdatachannel xcframework..."
       cd 3rdparty && bash build_libdatachannel_ios.sh
     fi
   CMD
 
-  s.vendored_frameworks = "3rdparty/libdatachannel.xcframework"
+  s.vendored_frameworks = "3rdparty/*.xcframework"
 
+  s.pod_target_xcconfig = {
+    'HEADER_SEARCH_PATHS' => [
+      '$(PODS_TARGET_SRCROOT)/3rdparty/ffmpeg.xcframework/ios-arm64/Headers',
+      '$(PODS_TARGET_SRCROOT)/3rdparty/libdatachannel.xcframework/ios-arm64/Headers'
+    ].join(' ')
+  }
 
   install_modules_dependencies(s)
 end

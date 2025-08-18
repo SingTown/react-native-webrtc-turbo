@@ -1,4 +1,6 @@
 #include "NativeDatachannelModule.h"
+#include <libavutil/avutil.h>
+#include <rtc/rtc.h>
 
 namespace facebook::react {
 
