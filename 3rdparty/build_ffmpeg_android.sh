@@ -1,15 +1,17 @@
-ARCHS=("aarch64" "armv7" "x86" "x86_64")
-CPUS=("armv8-a" "armv7-a" "i686" "x86-64")
-TOOLCHAIN_ARCHS=("aarch64-linux-android" "armv7a-linux-androideabi" "i686-linux-android" "x86_64-linux-android")
+ARCHS=("armv7" "aarch64" "x86" "x86_64")
+CPUS=("armv7-a" "armv8-a" "i686" "x86-64")
+ABIS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
+TOOLCHAIN_ARCHS=("armv7a-linux-androideabi" "aarch64-linux-android" "i686-linux-android" "x86_64-linux-android")
 
 for i in "${!ARCHS[@]}"; do
+    ABI="${ABIS[$i]}"
     ARCH="${ARCHS[$i]}"
     CPU="${CPUS[$i]}"
     TOOLCHAIN_ARCH="${TOOLCHAIN_ARCHS[$i]}"
 
     (
-        mkdir -p build/ffmpeg/android-$ARCH
-        cd build/ffmpeg/android-$ARCH
+        mkdir -p build/ffmpeg/android-$ABI
+        cd build/ffmpeg/android-$ABI
         ../../../ffmpeg/configure \
             --host-os=darwin-x86_64 --target-os=android \
             --enable-cross-compile --arch=$ARCH --cpu=$CPU \
