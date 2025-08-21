@@ -1,5 +1,5 @@
 {
-  "name": "react-native-webrtc",
+  "name": "react-native-webrtc-turbo",
   "version": "0.1.0",
   "description": "Turbo WebRTC module for React Native",
   "main": "./lib/module/index.js",
