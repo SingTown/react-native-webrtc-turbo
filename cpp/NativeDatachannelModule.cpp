@@ -14,7 +14,7 @@ std::string NativeDatachannelModule::reverseString(jsi::Runtime &rt,
 	return std::string(input.rbegin(), input.rend());
 }
 
-std::vector<uint8_t> buffer(720 * 480 * 3);
+std::vector<uint8_t> buffer(720 * 480 * 4);
 std::vector<uint8_t> &getTrackBuffer(int tr) {
 	std::random_device rd;
 	std::mt19937 gen(rd());

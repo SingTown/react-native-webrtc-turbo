@@ -11,6 +11,7 @@ add_library(
     datachannel-module
     STATIC
     ../cpp/NativeDatachannelModule.cpp
+    ../cpp/NativeDatachannelModuleAndroid.cpp
 )
 
 # Specifies a path to native header files.
