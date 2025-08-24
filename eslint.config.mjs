@@ -24,6 +24,6 @@ export default defineConfig([
     },
   },
   {
-    ignores: ['node_modules/', '3rdparty/', 'lib/'],
+    ignores: ['node_modules/', '3rdparty/', 'lib/', '.yarn/'],
   },
 ]);

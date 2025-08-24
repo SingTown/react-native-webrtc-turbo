@@ -1,7 +1,9 @@
 SDKS=("iphoneos" "iphonesimulator")
+FLAGS=("-miphoneos-version-min=15.1" "-mios-simulator-version-min=15.1")
 
 for i in "${!SDKS[@]}"; do
     SDK="${SDKS[$i]}"
+    FLAG="${FLAGS[$i]}"
 
     (
         mkdir -p build/ffmpeg/ios-$SDK-arm64
@@ -12,15 +14,21 @@ for i in "${!SDKS[@]}"; do
             --prefix=install \
             --cc="xcrun --sdk $SDK clang -arch arm64" \
             --cxx="xcrun --sdk $SDK clang++ -arch arm64" \
+            --extra-cflags="$FLAG" \
+            --extra-ldflags="$FLAG" \
             --disable-everything \
             --disable-shared --enable-static \
+            --disable-iconv \
             --disable-avformat \
             --disable-avdevice \
             --disable-avfilter \
-            --disable-swscale \
             --disable-swresample \
             --enable-avcodec \
+            --enable-swscale \
             --enable-avutil \
+            --disable-audiotoolbox \
+            --disable-videotoolbox \
+            --disable-mediacodec \
             --enable-decoder=h264 \
             --enable-decoder=hevc \
             --enable-parser=h264 \
@@ -29,6 +37,7 @@ for i in "${!SDKS[@]}"; do
         make -j install
         libtool -static -o install/lib/libffmpeg.a \
             install/lib/libavcodec.a \
+            install/lib/libswscale.a \
             install/lib/libavutil.a
     )
 done

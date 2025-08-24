@@ -1,4 +1,6 @@
-import WebrtcView from './WebrtcViewNativeComponent';
-import NativeDatachannelModule from './NativeDatachannelModule';
-
-export { WebrtcView, NativeDatachannelModule };
+export * from './WebrtcView';
+export * from './MediaStream';
+export * from './MediaStreamTrack';
+export * from './RTCPeerConnection';
+export * from './RTCRtpTransceiver';
+export * from './RTCTrackEvent';

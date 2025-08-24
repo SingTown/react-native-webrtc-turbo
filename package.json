@@ -35,7 +35,8 @@
     "example": "yarn workspace react-native-webrtc-example",
     "test": "jest",
     "typecheck": "tsc",
-    "lint": "eslint \"**/*.{js,ts,tsx}\"",
+    "lint:ts": "eslint \"src/**/*.{js,ts,tsx}\"",
+    "lint:cpp": "find cpp -name \"*.cpp\" -o -name \"*.h\" -o -name \"*.hpp\" | xargs clang-format --dry-run --Werror",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
     "release": "release-it --only-version"
@@ -157,7 +158,7 @@
     },
     "ios": {
       "componentProvider": {
-        "WebrtcView": "WebrtcView"
+        "WebrtcFabric": "WebrtcFabric"
       },
       "modulesProvider": {
         "NativeDatachannelModule": "NativeDatachannelModuleProvider"

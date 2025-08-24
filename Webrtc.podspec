@@ -16,7 +16,11 @@ Pod::Spec.new do |s|
   s.source_files = [
     "ios/**/*.{h,m,mm,cpp}",
     "cpp/NativeDatachannelModule.h",
+    "cpp/bridgeType.h",
+    "cpp/guid.h",
+    "cpp/ffmpeg.h",
     "cpp/NativeDatachannelModule.cpp",
+    "cpp/Decoder.cpp",
   ]
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
 

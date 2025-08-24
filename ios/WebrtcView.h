@@ -6,7 +6,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface WebrtcView : RCTViewComponentView
+@interface WebrtcFabric : RCTViewComponentView
 @end
 
 NS_ASSUME_NONNULL_END

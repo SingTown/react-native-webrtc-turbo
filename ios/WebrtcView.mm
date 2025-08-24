@@ -10,26 +10,27 @@
 
 using namespace facebook::react;
 
-@interface WebrtcView () <RCTWebrtcViewViewProtocol>
+@interface WebrtcFabric () <RCTWebrtcFabricViewProtocol>
 
 @end
 
-@implementation WebrtcView {
+@implementation WebrtcFabric {
   UIView * _view;
   UIImageView * _imageView;
   CIContext * _ciContext;
-  int _currentTrackId;
+  std::string _currentVideoTrackId;
+  std::string _currentAudioTrackId;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
 {
-  return concreteComponentDescriptorProvider<WebrtcViewComponentDescriptor>();
+  return concreteComponentDescriptorProvider<WebrtcFabricComponentDescriptor>();
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
 {
   if (self = [super initWithFrame:frame]) {
-    static const auto defaultProps = std::make_shared<const WebrtcViewProps>();
+    static const auto defaultProps = std::make_shared<const WebrtcFabricProps>();
     _props = defaultProps;
     
     _view = [[UIView alloc] init];
@@ -40,7 +41,7 @@ using namespace facebook::react;
     _ciContext = [CIContext contextWithOptions:nil];
     self.contentView = _view;
     CADisplayLink * _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateFrame)];
-    _displayLink.preferredFramesPerSecond = 30;
+    _displayLink.preferredFramesPerSecond = 100;
     [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
   }
   
@@ -50,11 +51,13 @@ using namespace facebook::react;
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps
 {
   
-  const auto &oldViewProps = *std::static_pointer_cast<WebrtcViewProps const>(_props);
-  const auto &newViewProps = *std::static_pointer_cast<WebrtcViewProps const>(props);
-  if (oldViewProps.trackId != newViewProps.trackId) {
-    _currentTrackId = newViewProps.trackId;
-    
+  const auto &oldViewProps = *std::static_pointer_cast<WebrtcFabricProps const>(_props);
+  const auto &newViewProps = *std::static_pointer_cast<WebrtcFabricProps const>(props);
+  if (oldViewProps.videoTrackId != newViewProps.videoTrackId) {
+    _currentVideoTrackId = newViewProps.videoTrackId;
+  }
+  if (oldViewProps.audioTrackId != newViewProps.audioTrackId) {
+    _currentAudioTrackId = newViewProps.audioTrackId;
   }
   
   [super updateProps:props oldProps:oldProps];
@@ -65,40 +68,41 @@ using namespace facebook::react;
   _imageView.frame = _view.bounds;
 }
 
-Class<RCTComponentViewProtocol> WebrtcViewCls(void)
+Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
 {
-  return WebrtcView.class;
+  return WebrtcFabric.class;
 }
 
 - (void)updateFrame {
   
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-    std::vector<uint8_t> buffer = getTrackBuffer(self->_currentTrackId);
-    
-    if (!buffer.empty()) {
-      NSData* resultData = [NSData dataWithBytes:buffer.data() length:buffer.size()];
-      [self displayImageFromRGBData:resultData width:720 height:480];
+    std::optional<ArgbFrame> argbFrame = getTrackBuffer(self->_currentVideoTrackId);
+    if (!argbFrame.has_value()) {
+      return;
     }
+    NSData* resultData = [NSData dataWithBytes:argbFrame->data.data() length:argbFrame->data.size()];
+    [self displayImageFromRGBData:resultData width:argbFrame->width height:argbFrame->height linesize:argbFrame->linesize];
   });
 }
 
-- (void)displayImageFromRGBData:(NSData *)data width:(int)width height:(int)height {
+- (void)displayImageFromRGBData:(NSData *)data width:(int)width height:(int)height linesize:(int)linesize {
   if (!data || data.length == 0) {
     return;
   }
   
   CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, data.bytes, data.length, NULL);
-  
   CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+  CGBitmapInfo bitmapInfo = kCGImageAlphaPremultipliedFirst;
+  
   
   CGImageRef cgImage = CGImageCreate(
                                      width,                          // width
                                      height,                         // height
                                      8,                              // bitsPerComponent
-                                     24,                             // bitsPerPixel (RGB = 8*3)
-                                     width * 3,                      // bytesPerRow
+                                     32,                             // bitsPerPixel (ARGB = 8*4)
+                                     linesize,                       // bytesPerRow
                                      colorSpace,                     // colorSpace
-                                     kCGBitmapByteOrderDefault,      // bitmapInfo
+                                     bitmapInfo,                     // bitmapInfo
                                      dataProvider,                   // dataProvider
                                      NULL,                           // decode
                                      false,                          // shouldInterpolate

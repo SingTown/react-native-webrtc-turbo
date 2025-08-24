@@ -23,14 +23,17 @@ for i in "${!ARCHS[@]}"; do
             --prefix=install \
             --disable-everything \
             --disable-shared --enable-static \
-            --enable-jni --enable-mediacodec \
+            --disable-iconv \
             --disable-avformat \
             --disable-avdevice \
             --disable-avfilter \
-            --disable-swscale \
             --disable-swresample \
             --enable-avcodec \
+            --enable-swscale \
             --enable-avutil \
+            --disable-audiotoolbox \
+            --disable-videotoolbox \
+            --disable-mediacodec \
             --enable-decoder=h264 \
             --enable-decoder=hevc \
             --enable-parser=h264 \

@@ -1,0 +1,116 @@
+import type { EventSubscription } from 'react-native';
+import NativeDatachannelModule from './NativeDatachannelModule';
+import { RTCRtpTransceiver } from './RTCRtpTransceiver';
+import type { RTCRtpTransceiverInit } from './RTCRtpTransceiver';
+import { RTCTrackEvent } from './RTCTrackEvent';
+
+export interface RTCIceServer {
+  credential?: string;
+  urls: string[] | string;
+  username?: string;
+}
+
+export interface RTCConfiguration {
+  iceServers?: RTCIceServer[];
+}
+
+export type RTCSdpType = 'answer' | 'offer';
+export interface RTCSessionDescriptionInit {
+  sdp?: string;
+  type: RTCSdpType;
+}
+
+export class RTCPeerConnection {
+  private pc: string;
+  private onLocalCandidateCallback: EventSubscription;
+
+  public onicecandidate: ((candidate: string) => void) | null = null;
+  public ontrack: ((event: RTCTrackEvent) => void) | null = null;
+
+  constructor(configuration?: RTCConfiguration) {
+    const servers = this.convertIceServersToUrls(
+      configuration?.iceServers || []
+    );
+    this.pc = NativeDatachannelModule.createPeerConnection(servers);
+    this.onLocalCandidateCallback = NativeDatachannelModule.onLocalCandidate(
+      (obj) => {
+        if (obj.pc !== this.pc || !this.onicecandidate) {
+          return;
+        }
+        this.onicecandidate(obj.candidate);
+      }
+    );
+  }
+
+  convertIceServersToUrls(iceServers: RTCIceServer[]): string[] {
+    let servers: string[] = [];
+    for (const iceServer of iceServers) {
+      let urls: string[] = [];
+      if (Array.isArray(iceServer.urls)) {
+        urls = iceServer.urls;
+      } else {
+        urls = [iceServer.urls];
+      }
+      const password = iceServer.credential || '';
+      const username = iceServer.username || '';
+
+      for (const url of urls) {
+        const protocol = url.split(':')[0];
+        const host = url.split(':')[1];
+        const port = url.split(':')[2];
+        if (!protocol || !host || !port) {
+          throw new Error(`Invalid ICE server URL: ${url}`);
+        }
+        if (password && username) {
+          servers.push(`${protocol}:${username}:${password}@${host}:${port}`);
+        } else {
+          servers.push(`${protocol}:${host}:${port}`);
+        }
+      }
+    }
+    return servers;
+  }
+
+  close() {
+    this.onLocalCandidateCallback.remove();
+    NativeDatachannelModule.closePeerConnection(this.pc);
+  }
+
+  addTransceiver(kind: 'audio' | 'video', init?: RTCRtpTransceiverInit) {
+    const transceiver = new RTCRtpTransceiver(this.pc, kind, init);
+    if (this.ontrack && transceiver.receiver.track) {
+      this.ontrack(new RTCTrackEvent(transceiver));
+    }
+    return transceiver;
+  }
+
+  createOffer(): RTCSessionDescriptionInit {
+    const sdp = NativeDatachannelModule.createOffer(this.pc);
+    return { sdp, type: 'offer' };
+  }
+
+  createAnswer(): RTCSessionDescriptionInit {
+    const sdp = NativeDatachannelModule.createAnswer(this.pc);
+    return { sdp, type: 'answer' };
+  }
+
+  get localDescription(): string {
+    return NativeDatachannelModule.getLocalDescription(this.pc);
+  }
+
+  setLocalDescription(description: RTCSessionDescriptionInit) {
+    NativeDatachannelModule.setLocalDescription(this.pc, description.type);
+  }
+
+  get remoteDescription(): string {
+    return NativeDatachannelModule.getRemoteDescription(this.pc);
+  }
+
+  setRemoteDescription(sdp: string, type: string) {
+    NativeDatachannelModule.setRemoteDescription(this.pc, sdp, type);
+  }
+
+  setRemoteCandidate(candidate: string, mid: string) {
+    NativeDatachannelModule.addRemoteCandidate(this.pc, candidate, mid);
+  }
+}
