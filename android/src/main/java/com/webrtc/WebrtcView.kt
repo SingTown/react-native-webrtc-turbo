@@ -6,10 +6,10 @@ import android.util.AttributeSet
 import android.view.Surface
 import android.view.TextureView
 
-class WebrtcView : TextureView, TextureView.SurfaceTextureListener {
+class WebrtcFabric : TextureView, TextureView.SurfaceTextureListener {
   private var surface: Surface? = null
-  private var width = 720
-  private var height = 480
+  private var width: Int = 720
+  private var height: Int = 480
 
   constructor(context: Context) : super(context) {
     init()
@@ -46,10 +46,14 @@ class WebrtcView : TextureView, TextureView.SurfaceTextureListener {
   }
 
   override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+    this.width = width
+    this.height = height
     this.surface = Surface(surface)
   }
 
   override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+    this.width = width
+    this.height = height
   }
 
   override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {

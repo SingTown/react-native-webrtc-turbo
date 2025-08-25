@@ -23,6 +23,7 @@ for i in "${!ARCHS[@]}"; do
             --prefix=install \
             --disable-everything \
             --disable-shared --enable-static \
+            --disable-asm \
             --disable-iconv \
             --disable-avformat \
             --disable-avdevice \

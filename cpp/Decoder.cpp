@@ -64,13 +64,13 @@ void Decoder::sendPacket(const std::vector<std::byte> &nal) {
 
 		sws_ctx =
 		    sws_getCachedContext(sws_ctx, frame->width, frame->height, format,
-		                         frame->width, frame->height, AV_PIX_FMT_ARGB,
+		                         frame->width, frame->height, AV_PIX_FMT_RGBA,
 		                         SWS_BILINEAR, nullptr, nullptr, nullptr);
 
-		ArgbFrame argbFrame(frame->width, frame->height);
-		uint8_t *dest[4] = {(uint8_t *)argbFrame.data.data(), nullptr, nullptr,
+		RGBAFrame rgbaFrame(frame->width, frame->height);
+		uint8_t *dest[4] = {(uint8_t *)rgbaFrame.data.data(), nullptr, nullptr,
 		                    nullptr};
-		int dest_linesize[4] = {argbFrame.linesize, 0, 0, 0};
+		int dest_linesize[4] = {rgbaFrame.linesize, 0, 0, 0};
 
 		if (sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height,
 		              dest, dest_linesize) < 0) {
@@ -79,14 +79,14 @@ void Decoder::sendPacket(const std::vector<std::byte> &nal) {
 		}
 
 		std::lock_guard lock(frameQueueMutex);
-		frameQueue.push(argbFrame);
+		frameQueue.push(rgbaFrame);
 	}
 	av_frame_free(&frame);
 }
 
 void Decoder::flush() { sendPacket({}); }
 
-std::optional<ArgbFrame> Decoder::receiveFrame() {
+std::optional<RGBAFrame> Decoder::receiveFrame() {
 	std::lock_guard lock(frameQueueMutex);
 	if (frameQueue.empty())
 		return std::nullopt;

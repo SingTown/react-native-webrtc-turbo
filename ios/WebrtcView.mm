@@ -76,30 +76,28 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
 - (void)updateFrame {
   
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-    std::optional<ArgbFrame> argbFrame = getTrackBuffer(self->_currentVideoTrackId);
-    if (!argbFrame.has_value()) {
+    std::optional<RGBAFrame> rgbaFrame = getTrackBuffer(self->_currentVideoTrackId);
+    if (!rgbaFrame.has_value()) {
       return;
     }
-    NSData* resultData = [NSData dataWithBytes:argbFrame->data.data() length:argbFrame->data.size()];
-    [self displayImageFromRGBData:resultData width:argbFrame->width height:argbFrame->height linesize:argbFrame->linesize];
+    NSData* resultData = [NSData dataWithBytes:rgbaFrame->data.data() length:rgbaFrame->data.size()];
+    [self displayImageFromRGBAData:resultData width:rgbaFrame->width height:rgbaFrame->height linesize:rgbaFrame->linesize];
   });
 }
 
-- (void)displayImageFromRGBData:(NSData *)data width:(int)width height:(int)height linesize:(int)linesize {
+- (void)displayImageFromRGBAData:(NSData *)data width:(int)width height:(int)height linesize:(int)linesize {
   if (!data || data.length == 0) {
     return;
   }
   
   CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, data.bytes, data.length, NULL);
   CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-  CGBitmapInfo bitmapInfo = kCGImageAlphaPremultipliedFirst;
-  
-  
+  CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast;
   CGImageRef cgImage = CGImageCreate(
                                      width,                          // width
                                      height,                         // height
                                      8,                              // bitsPerComponent
-                                     32,                             // bitsPerPixel (ARGB = 8*4)
+                                     32,                             // bitsPerPixel (RGBA = 8*4)
                                      linesize,                       // bytesPerRow
                                      colorSpace,                     // colorSpace
                                      bitmapInfo,                     // bitmapInfo

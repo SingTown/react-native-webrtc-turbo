@@ -9,7 +9,7 @@ import java.util.ArrayList
 class WebrtcViewPackage : ReactPackage {
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
     val viewManagers: MutableList<ViewManager<*, *>> = ArrayList()
-    viewManagers.add(WebrtcViewManager())
+    viewManagers.add(WebrtcFabricManager())
     return viewManagers
   }
 

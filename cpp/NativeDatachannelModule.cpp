@@ -246,7 +246,7 @@ void NativeDatachannelModule::addRemoteCandidate(jsi::Runtime &rt,
 	peerConnection->addRemoteCandidate(cand);
 }
 
-std::optional<ArgbFrame> getTrackBuffer(const std::string &tr) {
+std::optional<RGBAFrame> getTrackBuffer(const std::string &tr) {
 	if (tr.empty()) {
 		return std::nullopt;
 	}

@@ -10,6 +10,7 @@ set(FFMPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/ffmpeg/android-${A
 add_library(
     datachannel-module
     STATIC
+    ../cpp/Decoder.cpp
     ../cpp/NativeDatachannelModule.cpp
     ../cpp/NativeDatachannelModuleAndroid.cpp
 )
@@ -38,4 +39,5 @@ target_link_libraries(
     ${MBEDTLS_PATH}/lib/libmbedtls.a
     ${FFMPEG_PATH}/lib/libavcodec.a
     ${FFMPEG_PATH}/lib/libavutil.a
+    ${FFMPEG_PATH}/lib/libswscale.a
 )

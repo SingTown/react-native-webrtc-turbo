@@ -38,6 +38,6 @@ class NativeDatachannelModule
 	                        const std::string &candidate,
 	                        const std::string &mid);
 };
-std::optional<ArgbFrame> getTrackBuffer(const std::string &tr);
+std::optional<RGBAFrame> getTrackBuffer(const std::string &tr);
 
 } // namespace facebook::react
