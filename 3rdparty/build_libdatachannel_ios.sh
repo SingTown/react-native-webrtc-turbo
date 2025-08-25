@@ -1,3 +1,4 @@
+#!/bin/bash
 SDKS=("iphoneos" "iphonesimulator")
 
 (

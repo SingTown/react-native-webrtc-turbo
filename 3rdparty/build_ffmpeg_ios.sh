@@ -1,3 +1,4 @@
+#!/bin/bash
 SDKS=("iphoneos" "iphonesimulator")
 FLAGS=("-miphoneos-version-min=15.1" "-mios-simulator-version-min=15.1")
 

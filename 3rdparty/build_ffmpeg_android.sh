@@ -1,3 +1,4 @@
+#!/bin/bash
 ARCHS=("armv7" "aarch64" "x86" "x86_64")
 CPUS=("armv7-a" "armv8-a" "i686" "x86-64")
 ABIS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
