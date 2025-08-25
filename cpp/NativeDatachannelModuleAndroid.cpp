@@ -9,7 +9,7 @@ JNIEXPORT jobject JNICALL Java_com_webrtc_WebrtcFabricManager_getTrackBuffer(
 
 	const char *trackIdChars = env->GetStringUTFChars(trackId, nullptr);
 	std::string trackIdStr(trackIdChars);
-	 env->ReleaseStringUTFChars(trackId, trackIdChars);
+	env->ReleaseStringUTFChars(trackId, trackIdChars);
 
 	std::optional<RGBAFrame> frame = getTrackBuffer(trackIdStr);
 	if (!frame.has_value()) {
