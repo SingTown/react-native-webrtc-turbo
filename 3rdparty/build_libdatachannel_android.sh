@@ -7,7 +7,6 @@ ARCHS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
 )
 
 NDK_VERSION="27.1.12297006"
-yes | sdkmanager --install "ndk;${NDK_VERSION}"
 
 for ARCH in "${ARCHS[@]}"; do
     cmake -B build/mbedtls/android/$ARCH -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake \

@@ -5,7 +5,6 @@ ABIS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
 TOOLCHAIN_ARCHS=("armv7a-linux-androideabi" "aarch64-linux-android" "i686-linux-android" "x86_64-linux-android")
 
 NDK_VERSION="27.1.12297006"
-yes | sdkmanager --install "ndk;${NDK_VERSION}"
 
 for i in "${!ARCHS[@]}"; do
     ABI="${ABIS[$i]}"

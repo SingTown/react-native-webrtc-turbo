@@ -88,6 +88,7 @@ jobs:
         if: env.turbo_cache_hit != 1
         run: |
           /bin/bash -c "yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.1.12297006"
 
       - name: Build 3rdparty
         if: env.turbo_cache_hit != 1

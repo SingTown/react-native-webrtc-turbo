@@ -9,7 +9,7 @@ set(FFMPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/ffmpeg/android/${A
 
 add_library(
     datachannel-module
-    STATIC
+    SHARED
     ../cpp/Decoder.cpp
     ../cpp/NativeDatachannelModule.cpp
     ../cpp/NativeDatachannelModuleAndroid.cpp
