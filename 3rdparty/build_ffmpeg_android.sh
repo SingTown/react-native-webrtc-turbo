@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 ARCHS=("armv7" "aarch64" "x86" "x86_64")
 CPUS=("armv7-a" "armv8-a" "i686" "x86-64")
 ABIS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
@@ -11,10 +12,12 @@ for i in "${!ARCHS[@]}"; do
     ARCH="${ARCHS[$i]}"
     CPU="${CPUS[$i]}"
     TOOLCHAIN_ARCH="${TOOLCHAIN_ARCHS[$i]}"
+    FFMPEG_DIR="build/ffmpeg/android/$ABI"
+    OUTPUT_DIR="output/android/ffmpeg/$ABI"
 
     (
-        mkdir -p build/ffmpeg/android/$ABI
-        cd build/ffmpeg/android/$ABI
+        mkdir -p $FFMPEG_DIR
+        cd $FFMPEG_DIR
         ../../../../repo/ffmpeg/configure \
             --host-os=darwin-x86_64 --target-os=android \
             --enable-cross-compile --arch=$ARCH --cpu=$CPU \
@@ -44,5 +47,12 @@ for i in "${!ARCHS[@]}"; do
             --enable-parser=hevc
 
         make -j install
+    )
+
+    (
+        rm -rf $OUTPUT_DIR
+        mkdir -p $OUTPUT_DIR/lib
+        cp -r $FFMPEG_DIR/install/lib/*.a $OUTPUT_DIR/lib
+        cp -r $FFMPEG_DIR/install/include $OUTPUT_DIR/include
     )
 done

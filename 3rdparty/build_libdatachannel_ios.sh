@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 SDKS=("iphoneos" "iphonesimulator" "iphonesimulator")
 ARCHS=("arm64" "arm64" "x86_64")
 
@@ -63,10 +64,10 @@ libtool -static \
     build/libdatachannel/iphonesimulator/x86_64/libdatachannel.a \
     -o build/libdatachannel/iphonesimulator/libdatachannel.a
 
-rm -rf build/libdatachannel/libdatachannel.xcframework
+rm -rf output/ios/libdatachannel.xcframework
 xcodebuild -create-xcframework \
     -library build/libdatachannel/iphoneos/libdatachannel.a \
     -headers build/libdatachannel/iphoneos/arm64/install/include \
     -library build/libdatachannel/iphonesimulator/libdatachannel.a \
     -headers build/libdatachannel/iphonesimulator/arm64/install/include \
-    -output build/libdatachannel/libdatachannel.xcframework
+    -output output/ios/libdatachannel.xcframework

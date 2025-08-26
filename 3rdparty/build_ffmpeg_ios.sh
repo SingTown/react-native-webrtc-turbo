@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 SDKS=("iphoneos" "iphonesimulator" "iphonesimulator")
 ARCHS=("arm64" "arm64" "x86_64")
 FLAGS=("-miphoneos-version-min=15.1" "-mios-simulator-version-min=15.1" "-mios-simulator-version-min=15.1")
@@ -55,10 +56,10 @@ libtool -static \
     build/ffmpeg/iphonesimulator/x86_64/libffmpeg.a \
     -o build/ffmpeg/iphonesimulator/libffmpeg.a
 
-rm -rf build/ffmpeg/ffmpeg.xcframework
+rm -rf output/ffmpeg.xcframework
 xcodebuild -create-xcframework \
   -library build/ffmpeg/iphoneos/libffmpeg.a \
   -headers build/ffmpeg/iphoneos/arm64/install/include \
   -library build/ffmpeg/iphonesimulator/libffmpeg.a \
   -headers build/ffmpeg/iphonesimulator/arm64/install/include \
-  -output build/ffmpeg/ffmpeg.xcframework
+  -output output/ios/ffmpeg.xcframework

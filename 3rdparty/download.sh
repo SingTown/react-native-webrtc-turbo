@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 if [ ! -d "repo/mbedtls" ]; then
     git clone https://github.com/Mbed-TLS/mbedtls.git repo/mbedtls --recursive --depth 1 -b mbedtls-3.6.4
 else
