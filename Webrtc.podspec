@@ -23,12 +23,15 @@ Pod::Spec.new do |s|
     "cpp/Decoder.cpp",
   ]
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
-  s.vendored_frameworks = "3rdparty/*.xcframework"
+  s.vendored_frameworks = [
+    "3rdparty/build/ffmpeg/ffmpeg.xcframework",
+    "3rdparty/build/libdatachannel/libdatachannel.xcframework",
+  ]
 
   s.pod_target_xcconfig = {
     'HEADER_SEARCH_PATHS' => [
-      '$(PODS_TARGET_SRCROOT)/3rdparty/ffmpeg.xcframework/ios-arm64/Headers',
-      '$(PODS_TARGET_SRCROOT)/3rdparty/libdatachannel.xcframework/ios-arm64/Headers'
+      '$(PODS_TARGET_SRCROOT)/3rdparty/build/ffmpeg/ffmpeg.xcframework/ios-arm64/Headers',
+      '$(PODS_TARGET_SRCROOT)/3rdparty/build/libdatachannel/libdatachannel.xcframework/ios-arm64/Headers',
     ].join(' ')
   }
 

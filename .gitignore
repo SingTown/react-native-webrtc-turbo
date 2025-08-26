@@ -29,7 +29,6 @@ DerivedData
 *.xcuserstate
 project.xcworkspace
 **/.xcode.env.local
-*.xcframework
 
 # Android/IJ
 #
@@ -85,3 +84,7 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# 3rdparty
+3rdparty/repo
+3rdparty/build

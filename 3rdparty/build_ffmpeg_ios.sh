@@ -1,3 +1,4 @@
+#!/bin/bash
 SDKS=("iphoneos" "iphonesimulator" "iphonesimulator")
 ARCHS=("arm64" "arm64" "x86_64")
 FLAGS=("-miphoneos-version-min=15.1" "-mios-simulator-version-min=15.1" "-mios-simulator-version-min=15.1")
@@ -10,7 +11,7 @@ for i in "${!SDKS[@]}"; do
     (
         mkdir -p build/ffmpeg/$SDK/$ARCH
         cd build/ffmpeg/$SDK/$ARCH
-        ../../../../ffmpeg/configure \
+        ../../../../repo/ffmpeg/configure \
             --sysroot="$(xcrun --sdk $SDK --show-sdk-path)" \
             --enable-cross-compile --arch=$ARCH \
             --prefix=install \
@@ -54,10 +55,10 @@ libtool -static \
     build/ffmpeg/iphonesimulator/x86_64/libffmpeg.a \
     -o build/ffmpeg/iphonesimulator/libffmpeg.a
 
-rm -rf ffmpeg.xcframework
+rm -rf build/ffmpeg/ffmpeg.xcframework
 xcodebuild -create-xcframework \
   -library build/ffmpeg/iphoneos/libffmpeg.a \
   -headers build/ffmpeg/iphoneos/arm64/install/include \
   -library build/ffmpeg/iphonesimulator/libffmpeg.a \
   -headers build/ffmpeg/iphonesimulator/arm64/install/include \
-  -output ffmpeg.xcframework
+  -output build/ffmpeg/ffmpeg.xcframework

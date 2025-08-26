@@ -1,8 +1,9 @@
+#!/bin/bash
 SDKS=("iphoneos" "iphonesimulator" "iphonesimulator")
 ARCHS=("arm64" "arm64" "x86_64")
 
 (
-    cd mbedtls
+    cd repo/mbedtls
     python3 scripts/config.py set MBEDTLS_SSL_DTLS_SRTP
 )
 
@@ -18,7 +19,7 @@ for i in "${!SDKS[@]}"; do
         -DCMAKE_OSX_DEPLOYMENT_TARGET=15.1 \
         -DCMAKE_INSTALL_PREFIX=$MBEDTLS_DIR/install \
         -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        mbedtls
+        repo/mbedtls
     cmake --build $MBEDTLS_DIR --config Release --target install
 
     LIBDATACHANNEL_DIR="build/libdatachannel/$SDK/$ARCH"
@@ -39,7 +40,7 @@ for i in "${!SDKS[@]}"; do
         -DMbedTLS_LIBRARY=$MBEDTLS_DIR/install/lib/libmbedtls.a \
         -DMbedCrypto_LIBRARY=$MBEDTLS_DIR/install/lib/libmbedcrypto.a \
         -DMbedX509_LIBRARY=$MBEDTLS_DIR/install/lib/libmbedx509.a \
-        libdatachannel
+        repo/libdatachannel
     cmake --build $LIBDATACHANNEL_DIR --config Release --target install
 
     libtool -static \
@@ -62,10 +63,10 @@ libtool -static \
     build/libdatachannel/iphonesimulator/x86_64/libdatachannel.a \
     -o build/libdatachannel/iphonesimulator/libdatachannel.a
 
-rm -rf libdatachannel.xcframework
+rm -rf build/libdatachannel/libdatachannel.xcframework
 xcodebuild -create-xcframework \
     -library build/libdatachannel/iphoneos/libdatachannel.a \
     -headers build/libdatachannel/iphoneos/arm64/install/include \
     -library build/libdatachannel/iphonesimulator/libdatachannel.a \
     -headers build/libdatachannel/iphonesimulator/arm64/install/include \
-    -output libdatachannel.xcframework
+    -output build/libdatachannel/libdatachannel.xcframework

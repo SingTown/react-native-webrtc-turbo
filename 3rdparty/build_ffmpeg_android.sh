@@ -14,9 +14,9 @@ for i in "${!ARCHS[@]}"; do
     TOOLCHAIN_ARCH="${TOOLCHAIN_ARCHS[$i]}"
 
     (
-        mkdir -p build/ffmpeg/android-$ABI
-        cd build/ffmpeg/android-$ABI
-        ../../../ffmpeg/configure \
+        mkdir -p build/ffmpeg/android/$ABI
+        cd build/ffmpeg/android/$ABI
+        ../../../../repo/ffmpeg/configure \
             --host-os=darwin-x86_64 --target-os=android \
             --enable-cross-compile --arch=$ARCH --cpu=$CPU \
             --sysroot=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/sysroot \

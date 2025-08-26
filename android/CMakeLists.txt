@@ -3,9 +3,9 @@ project(datachannelModule)
 
 set (CMAKE_VERBOSE_MAKEFILE ON)
 
-set(MBEDTLS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/mbedtls/android-${ANDROID_ABI}/install)
-set(LIBDATACHANNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/libdatachannel/android-${ANDROID_ABI}/install)
-set(FFMPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/ffmpeg/android-${ANDROID_ABI}/install)
+set(MBEDTLS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/mbedtls/android/${ANDROID_ABI}/install)
+set(LIBDATACHANNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/libdatachannel/android/${ANDROID_ABI}/install)
+set(FFMPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/build/ffmpeg/android/${ANDROID_ABI}/install)
 
 add_library(
     datachannel-module
