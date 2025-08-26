@@ -28,14 +28,8 @@ target_link_libraries(
     jsi
     reactnative
     react_codegen_WebrtcSpec
-    ${LIBDATACHANNEL_PATH}/lib/libdatachannel.a
-    ${LIBDATACHANNEL_PATH}/lib/libjuice.a
-    ${LIBDATACHANNEL_PATH}/lib/libsrtp2.a
-    ${LIBDATACHANNEL_PATH}/lib/libusrsctp.a
-    ${LIBDATACHANNEL_PATH}/lib/libmbedcrypto.a
-    ${LIBDATACHANNEL_PATH}/lib/libmbedx509.a
-    ${LIBDATACHANNEL_PATH}/lib/libmbedtls.a
-    ${FFMPEG_PATH}/lib/libavcodec.a
-    ${FFMPEG_PATH}/lib/libavutil.a
-    ${FFMPEG_PATH}/lib/libswscale.a
+    ${LIBDATACHANNEL_PATH}/lib/libdatachannel.so
+    ${FFMPEG_PATH}/lib/libavcodec.so
+    ${FFMPEG_PATH}/lib/libavutil.so
+    ${FFMPEG_PATH}/lib/libswscale.so
 )

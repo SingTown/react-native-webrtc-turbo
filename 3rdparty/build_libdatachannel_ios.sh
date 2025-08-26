@@ -19,6 +19,7 @@ for i in "${!SDKS[@]}"; do
         -DCMAKE_OSX_SYSROOT=$SDK \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=15.1 \
         -DCMAKE_INSTALL_PREFIX=$MBEDTLS_DIR/install \
+        -DCMAKE_BUILD_TYPE=Release \
         -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         repo/mbedtls
     cmake --build $MBEDTLS_DIR --config Release --target install
@@ -31,6 +32,7 @@ for i in "${!SDKS[@]}"; do
         -DCMAKE_OSX_SYSROOT=$SDK \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=15.1 \
         -DCMAKE_INSTALL_PREFIX=$LIBDATACHANNEL_DIR/install \
+        -DCMAKE_BUILD_TYPE=Release \
         -DNO_TESTS=ON \
         -DNO_EXAMPLES=ON \
         -DBUILD_SHARED_LIBS=OFF \

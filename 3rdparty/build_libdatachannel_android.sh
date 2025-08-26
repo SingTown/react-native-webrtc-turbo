@@ -16,6 +16,7 @@ for ARCH in "${ARCHS[@]}"; do
     cmake -B build/mbedtls/android/$ARCH -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=$ARCH \
         -DANDROID_PLATFORM=android-24 \
+        -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=$MBEDTLS_DIR/install \
         -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         repo/mbedtls
@@ -25,10 +26,11 @@ for ARCH in "${ARCHS[@]}"; do
         -DANDROID_ABI=$ARCH \
         -DANDROID_PLATFORM=android-24 \
         -DCMAKE_INSTALL_PREFIX=$LIBDATACHANNEL_DIR/install \
+        -DCMAKE_BUILD_TYPE=Release \
         -DNO_TESTS=ON \
         -DNO_EXAMPLES=ON \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DBUILD_SHARED_DEPS_LIBS=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=OFF \
         -DENABLE_WARNINGS_AS_ERRORS=OFF \
         -DUSE_MBEDTLS=ON \
         -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
@@ -41,7 +43,6 @@ for ARCH in "${ARCHS[@]}"; do
 
     rm -rf $OUTPUT_DIR
     mkdir -p $OUTPUT_DIR/lib
-    cp -r $MBEDTLS_DIR/install/lib/*.a $OUTPUT_DIR/lib
-    cp -r $LIBDATACHANNEL_DIR/install/lib/*.a $OUTPUT_DIR/lib
+    cp -r $LIBDATACHANNEL_DIR/install/lib/*.so $OUTPUT_DIR/lib
     cp -r $LIBDATACHANNEL_DIR/install/include $OUTPUT_DIR/include
 done

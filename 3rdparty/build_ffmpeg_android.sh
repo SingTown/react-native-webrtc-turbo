@@ -25,10 +25,10 @@ for i in "${!ARCHS[@]}"; do
             --sysinclude=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/ \
             --cc=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/${TOOLCHAIN_ARCH}24-clang \
             --cxx=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/${TOOLCHAIN_ARCH}24-clang++ \
-            --strip=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/${TOOLCHAIN_ARCH}24-strip \
+            --strip=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip \
             --prefix=install \
             --disable-everything \
-            --disable-shared --enable-static \
+            --enable-shared --disable-static \
             --disable-asm \
             --disable-iconv \
             --disable-avformat \
@@ -52,7 +52,7 @@ for i in "${!ARCHS[@]}"; do
     (
         rm -rf $OUTPUT_DIR
         mkdir -p $OUTPUT_DIR/lib
-        cp -r $FFMPEG_DIR/install/lib/*.a $OUTPUT_DIR/lib
+        cp -r $FFMPEG_DIR/install/lib/*.so $OUTPUT_DIR/lib
         cp -r $FFMPEG_DIR/install/include $OUTPUT_DIR/include
     )
 done
