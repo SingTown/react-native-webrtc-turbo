@@ -1,4 +1,5 @@
-SDKS=("iphoneos" "iphonesimulator")
+SDKS=("iphoneos" "iphonesimulator" "iphonesimulator")
+ARCHS=("arm64" "arm64" "x86_64")
 
 (
     cd mbedtls
@@ -7,11 +8,12 @@ SDKS=("iphoneos" "iphonesimulator")
 
 for i in "${!SDKS[@]}"; do
     SDK="${SDKS[$i]}"
-    
-    MBEDTLS_DIR="build/mbedtls/ios-$SDK-arm64"
+    ARCH="${ARCHS[$i]}"
+
+    MBEDTLS_DIR="build/mbedtls/$SDK/$ARCH"
     cmake -B $MBEDTLS_DIR -G Xcode \
         -DCMAKE_SYSTEM_NAME=iOS \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DCMAKE_OSX_ARCHITECTURES=$ARCH \
         -DCMAKE_OSX_SYSROOT=$SDK \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=15.1 \
         -DCMAKE_INSTALL_PREFIX=$MBEDTLS_DIR/install \
@@ -19,11 +21,11 @@ for i in "${!SDKS[@]}"; do
         mbedtls
     cmake --build $MBEDTLS_DIR --config Release --target install
 
-    LIBDATACHANNEL_DIR="build/libdatachannel/ios-$SDK-arm64"
+    LIBDATACHANNEL_DIR="build/libdatachannel/$SDK/$ARCH"
     cmake -B $LIBDATACHANNEL_DIR -G Xcode \
         -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
         -DCMAKE_SYSTEM_NAME=iOS \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DCMAKE_OSX_ARCHITECTURES=$ARCH \
         -DCMAKE_OSX_SYSROOT=$SDK \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=15.1 \
         -DCMAKE_INSTALL_PREFIX=$LIBDATACHANNEL_DIR/install \
@@ -51,10 +53,19 @@ for i in "${!SDKS[@]}"; do
         -o $LIBDATACHANNEL_DIR/libdatachannel.a
 done
 
+libtool -static \
+    build/libdatachannel/iphoneos/arm64/libdatachannel.a \
+    -o build/libdatachannel/iphoneos/libdatachannel.a
+
+libtool -static \
+    build/libdatachannel/iphonesimulator/arm64/libdatachannel.a \
+    build/libdatachannel/iphonesimulator/x86_64/libdatachannel.a \
+    -o build/libdatachannel/iphonesimulator/libdatachannel.a
+
 rm -rf libdatachannel.xcframework
 xcodebuild -create-xcframework \
-    -library build/libdatachannel/ios-iphoneos-arm64/libdatachannel.a \
-    -headers build/libdatachannel/ios-iphoneos-arm64/install/include \
-    -library build/libdatachannel/ios-iphonesimulator-arm64/libdatachannel.a \
-    -headers build/libdatachannel/ios-iphonesimulator-arm64/install/include \
+    -library build/libdatachannel/iphoneos/libdatachannel.a \
+    -headers build/libdatachannel/iphoneos/arm64/install/include \
+    -library build/libdatachannel/iphonesimulator/libdatachannel.a \
+    -headers build/libdatachannel/iphonesimulator/arm64/install/include \
     -output libdatachannel.xcframework

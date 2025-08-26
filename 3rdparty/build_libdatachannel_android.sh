@@ -1,4 +1,4 @@
-# build MBEDTLS
+#!/bin/bash
 ARCHS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
 
 (
@@ -6,8 +6,11 @@ ARCHS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
     python3 scripts/config.py set MBEDTLS_SSL_DTLS_SRTP
 )
 
+NDK_VERSION="27.1.12297006"
+yes | sdkmanager --install "ndk;${NDK_VERSION}"
+
 for ARCH in "${ARCHS[@]}"; do
-    cmake -B build/mbedtls/android-$ARCH -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/27.1.12297006/build/cmake/android.toolchain.cmake \
+    cmake -B build/mbedtls/android-$ARCH -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=$ARCH \
         -DANDROID_PLATFORM=android-24 \
         -DCMAKE_INSTALL_PREFIX=build/mbedtls/android-$ARCH/install \
@@ -15,7 +18,7 @@ for ARCH in "${ARCHS[@]}"; do
         mbedtls
     cmake --build build/mbedtls/android-$ARCH --config Release --target install
 
-    cmake -B build/libdatachannel/android-$ARCH -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/27.1.12297006/build/cmake/android.toolchain.cmake \
+    cmake -B build/libdatachannel/android-$ARCH -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=$ARCH \
         -DANDROID_PLATFORM=android-24 \
         -DCMAKE_INSTALL_PREFIX=build/libdatachannel/android-$ARCH/install \

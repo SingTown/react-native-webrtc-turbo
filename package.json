@@ -38,7 +38,10 @@
     "lint:ts": "eslint \"src/**/*.{js,ts,tsx}\" \"example/src/**/*.{js,ts,tsx}\"",
     "lint:cpp": "find cpp -name \"*.cpp\" -o -name \"*.h\" -o -name \"*.hpp\" | xargs clang-format --dry-run --Werror",
     "lint": "yarn lint:ts && yarn lint:cpp",
+    "3rdparty:ios": "cd 3rdparty && sh build_ios.sh",
+    "3rdparty:android": "cd 3rdparty && sh build_android.sh",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
+    "clean:ios": "del-cli example/ios/build example/ios/Pods",
     "prepare": "bob build",
     "release": "release-it --only-version"
   },
