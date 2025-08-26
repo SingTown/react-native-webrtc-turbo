@@ -27,12 +27,15 @@ for ARCH in "${ARCHS[@]}"; do
         -DANDROID_PLATFORM=android-24 \
         -DCMAKE_INSTALL_PREFIX=$LIBDATACHANNEL_DIR/install \
         -DCMAKE_BUILD_TYPE=Release \
+        -DNO_WEBSOCKET=ON \
         -DNO_TESTS=ON \
         -DNO_EXAMPLES=ON \
         -DBUILD_SHARED_LIBS=ON \
         -DBUILD_STATIC_LIBS=OFF \
         -DENABLE_WARNINGS_AS_ERRORS=OFF \
         -DUSE_MBEDTLS=ON \
+        -DUSE_GNUTLS=OFF \
+        -DUSE_NICE=OFF \
         -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
         -DMbedTLS_INCLUDE_DIR=$MBEDTLS_DIR/install/include \
         -DMbedTLS_LIBRARY=$MBEDTLS_DIR/install/lib/libmbedtls.a \

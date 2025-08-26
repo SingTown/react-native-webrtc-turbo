@@ -33,12 +33,15 @@ for i in "${!SDKS[@]}"; do
         -DCMAKE_OSX_DEPLOYMENT_TARGET=15.1 \
         -DCMAKE_INSTALL_PREFIX=$LIBDATACHANNEL_DIR/install \
         -DCMAKE_BUILD_TYPE=Release \
+        -DNO_WEBSOCKET=ON \
         -DNO_TESTS=ON \
         -DNO_EXAMPLES=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_SHARED_DEPS_LIBS=OFF \
         -DENABLE_WARNINGS_AS_ERRORS=OFF \
         -DUSE_MBEDTLS=ON \
+        -DUSE_GNUTLS=OFF \
+        -DUSE_NICE=OFF \
         -DMbedTLS_INCLUDE_DIR=$MBEDTLS_DIR/install/include \
         -DMbedTLS_LIBRARY=$MBEDTLS_DIR/install/lib/libmbedtls.a \
         -DMbedCrypto_LIBRARY=$MBEDTLS_DIR/install/lib/libmbedcrypto.a \
