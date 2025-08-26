@@ -141,11 +141,15 @@ jobs:
             echo "turbo_cache_hit=1" >> $GITHUB_ENV
           fi
 
-      - name: Use appropriate Xcode version
-        if: env.turbo_cache_hit != 1
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+      - name: Setup Ruby (bundle)
+        uses: ruby/setup-ruby@v1
         with:
-          xcode-version: ${{ env.XCODE_VERSION }}
+          ruby-version: 2.6
+          bundler-cache: true
+          working-directory: example/ios
+
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s "/Applications/Xcode_16.4.app/Contents/Developer"
 
       - name: Build 3rdparty
         if: env.turbo_cache_hit != 1
@@ -163,4 +167,7 @@ jobs:
 
       - name: Build example for iOS
         run: |
-          yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
+          xcodebuild -showsdks
+          xcrun simctl list devices
+          cd example/ios
+          xcodebuild -workspace WebrtcExample.xcworkspace -scheme WebrtcExample -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16'
