@@ -1,5 +1,7 @@
 # Changelog
 
+## <small>0.2.1 (2025-08-27)</small>
+
 ## 0.2.0 (2025-08-27)
 
 * chore: 3rdparty shared library in android ([d7162fa](https://github.com/singtown/react-native-webrtc-turbo/commit/d7162fa))
