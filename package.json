@@ -54,7 +54,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/singtown/react-native-webrtc-turbo.git"
+    "url": "https://github.com/singtown/react-native-webrtc-turbo"
   },
   "author": "kaizhi-singtown <kaizhi@singtown.com> (https://github.com/singtown)",
   "license": "MPL-2.0",
@@ -118,16 +118,17 @@
       "tagName": "v${version}"
     },
     "npm": {
-      "publish": true
+      "publish": false
     },
     "github": {
-      "release": true
+      "release": false
     },
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": {
           "name": "angular"
-        }
+        },
+        "infile": "CHANGELOG.md"
       }
     }
   },
