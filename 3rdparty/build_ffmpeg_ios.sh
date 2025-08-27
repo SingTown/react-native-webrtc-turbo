@@ -56,7 +56,7 @@ libtool -static \
     build/ffmpeg/iphonesimulator/x86_64/libffmpeg.a \
     -o build/ffmpeg/iphonesimulator/libffmpeg.a
 
-rm -rf output/ffmpeg.xcframework
+rm -rf output/ios/ffmpeg.xcframework
 xcodebuild -create-xcframework \
   -library build/ffmpeg/iphoneos/libffmpeg.a \
   -headers build/ffmpeg/iphoneos/arm64/install/include \
