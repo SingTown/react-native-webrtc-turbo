@@ -5,6 +5,7 @@ import {
   WebrtcView,
   RTCPeerConnection,
   MediaStream,
+  NativeMediaDevice,
 } from 'react-native-webrtc-turbo';
 import type { RTCIceServer } from 'react-native-webrtc-turbo';
 import {
@@ -15,6 +16,7 @@ import {
   SafeAreaView,
   View,
   ScrollView,
+  Alert,
 } from 'react-native';
 import Tabs from './Tabs';
 
@@ -30,6 +32,29 @@ export default function App() {
   const [iceUrl, setIceUrl] = useState('turn:turn.example.com:3478');
   const [iceUsername, setIceUsername] = useState('username');
   const [icePassword, setIcePassword] = useState('password');
+
+  const initializeCamera = async () => {
+    try {
+      const hasPermission = await NativeMediaDevice.requestCameraPermission();
+
+      if (hasPermission) {
+        // 权限已获得，创建摄像头
+        const cameraResult = await NativeMediaDevice.createCamera('0');
+        console.log('Camera created:', cameraResult);
+        Alert.alert('Success', 'Camera initialized successfully');
+      } else {
+        // 权限被拒绝
+        Alert.alert(
+          'Permission Required',
+          'Camera permission is required for video capture. Please grant permission in Settings if needed.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      console.error('Camera initialization failed:', error);
+      Alert.alert('Error', `Failed to initialize camera: ${error}`);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -104,6 +129,9 @@ export default function App() {
                 />
               </View>
             </ScrollView>
+            <View style={styles.buttonContainer}>
+              <Button title="Initialize Camera" onPress={initializeCamera} />
+            </View>
             <View style={styles.buttonContainer}>
               <Button
                 title="Offer"

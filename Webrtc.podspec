@@ -24,6 +24,7 @@ Pod::Spec.new do |s|
   ]
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
   s.vendored_frameworks = "3rdparty/output/ios/*.xcframework"
+  s.frameworks = 'AVFoundation', 'CoreMedia', 'CoreVideo', 'VideoToolbox'
 
   s.pod_target_xcconfig = {
     'HEADER_SEARCH_PATHS' => [

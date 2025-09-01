@@ -169,7 +169,8 @@
         "WebrtcFabric": "WebrtcFabric"
       },
       "modulesProvider": {
-        "NativeDatachannelModule": "NativeDatachannelModuleProvider"
+        "NativeDatachannelModule": "NativeDatachannelModuleProvider",
+        "NativeMediaDevice": "NativeMediaDeviceModuleProvider"
       }
     }
   },
