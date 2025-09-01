@@ -15,12 +15,13 @@ Pod::Spec.new do |s|
 
   s.source_files = [
     "ios/**/*.{h,m,mm,cpp}",
-    "cpp/NativeDatachannelModule.h",
     "cpp/bridgeType.h",
     "cpp/guid.h",
     "cpp/ffmpeg.h",
+    "cpp/MediaStreamTrack.h",
+    "cpp/MediaStreamTrack.cpp",
     "cpp/NativeDatachannelModule.cpp",
-    "cpp/Decoder.cpp",
+    "cpp/NativeDatachannelModule.h",
   ]
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
   s.vendored_frameworks = "3rdparty/output/ios/*.xcframework"

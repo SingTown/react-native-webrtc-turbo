@@ -200,10 +200,7 @@ export default function App() {
               <Button
                 title="Set Remote SDP"
                 onPress={() => {
-                  pc?.setRemoteDescription(
-                    inputRemoteSDP.trim() + '\n',
-                    'answer'
-                  );
+                  pc?.setRemoteDescription(inputRemoteSDP.trim() + '\n');
                 }}
               />
             </View>

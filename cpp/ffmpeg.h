@@ -3,44 +3,79 @@
 #include <mutex>
 #include <queue>
 #include <vector>
+
 extern "C" {
+#define AVMediaType FFmpeg_AVMediaType
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/log.h>
 #include <libswscale/swscale.h>
+#undef AVMediaType
 }
 
-class RGBAFrame {
+class Decoder {
+  private:
+	AVCodecContext *ctx;
+	std::mutex mutex;
+
   public:
-	std::vector<std::byte> data;
-	int width;
-	int height;
-	int linesize;
-	RGBAFrame(int width, int height) : width(width), height(height) {
-		const int rgbaSize =
-		    av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 1);
-		int dest_linesize[4];
-		int ret =
-		    av_image_fill_linesizes(dest_linesize, AV_PIX_FMT_RGBA, width);
-		if (ret < 0) {
-			throw std::runtime_error("Could not fill image line sizes");
+	Decoder(AVCodecID codecId) {
+
+		auto decoder = avcodec_find_decoder(codecId);
+		if (!decoder)
+			throw std::runtime_error("Could not find decoder");
+
+		ctx = avcodec_alloc_context3(decoder);
+		if (!ctx)
+			throw std::runtime_error("Could not allocate AVCodecContext");
+
+		ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+		if (avcodec_open2(ctx, decoder, NULL) < 0)
+			throw std::runtime_error("Could not open codec");
+	}
+
+	std::vector<std::shared_ptr<AVFrame>>
+	decode(std::shared_ptr<AVPacket> packet) {
+		std::lock_guard lock(mutex);
+
+		if (avcodec_send_packet(ctx, packet.get()) < 0) {
+			throw std::runtime_error("Error sending packet");
 		}
-		linesize = dest_linesize[0];
-		data.resize(rgbaSize);
+
+		std::vector<std::shared_ptr<AVFrame>> frames;
+		while (1) {
+			std::shared_ptr<AVFrame> frame(
+			    av_frame_alloc(), [](AVFrame *f) { av_frame_free(&f); });
+			if (!frame)
+				throw std::runtime_error("Could not allocate image");
+
+			int ret = avcodec_receive_frame(ctx, frame.get());
+			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+				break;
+			else if (ret < 0)
+				throw std::runtime_error("Error during decoding");
+
+			frames.push_back(frame);
+		}
+		return frames;
+	}
+
+	void flush() { decode(nullptr); }
+
+	~Decoder() {
+		flush();
+		if (ctx) {
+			avcodec_free_context(&ctx);
+			ctx = nullptr;
+		}
 	}
 };
 
-class Decoder {
-  public:
-	Decoder(AVCodecID codecId);
-	~Decoder();
-
-	void sendPacket(const std::vector<std::byte> &nal);
-	std::optional<RGBAFrame> receiveFrame();
-	void flush();
-
-  private:
-	AVCodecContext *codec_ctx;
-	struct SwsContext *sws_ctx;
-	std::queue<RGBAFrame> frameQueue;
-	std::mutex frameQueueMutex;
-};
+inline std::shared_ptr<AVPacket> createAVPacket() {
+	return std::shared_ptr<AVPacket>(av_packet_alloc(),
+	                                 [](AVPacket *f) { av_packet_free(&f); });
+}
+inline std::shared_ptr<AVFrame> createAVFrame() {
+	return std::shared_ptr<AVFrame>(av_frame_alloc(),
+	                                [](AVFrame *f) { av_frame_free(&f); });
+}

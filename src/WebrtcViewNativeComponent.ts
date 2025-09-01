@@ -2,8 +2,8 @@ import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNati
 import type { ViewProps } from 'react-native';
 
 interface NativeProps extends ViewProps {
-  videoTrackId: string;
-  audioTrackId: string;
+  videoStreamTrackId: string;
+  audioStreamTrackId: string;
 }
 
 export default codegenNativeComponent<NativeProps>('WebrtcFabric');

@@ -28,10 +28,10 @@ class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
 
   private val frameHandler = Handler(Looper.getMainLooper())
   private var currentView: WebrtcFabric? = null
-  private var videoTrackId: String = ""
-  private var audioTrackId: String = ""
+  private var videoStreamTrackId: String = ""
+  private var audioStreamTrackId: String = ""
 
-  external fun getTrackBuffer(trackId: String): RGBAFrame?
+  external fun popVideoStream(id: String): RGBAFrame?
 
   init {
     mDelegate = WebrtcFabricManagerDelegate(this)
@@ -41,7 +41,7 @@ class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
   private fun updateFrame() {
     currentView?.let { view ->
       try {
-        val rgbaFrame = getTrackBuffer(videoTrackId)
+        val rgbaFrame = popVideoStream(videoStreamTrackId)
           ?: return
         val bitmap = createBitmap(rgbaFrame.width, rgbaFrame.height, Bitmap.Config.ARGB_8888)
         bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(rgbaFrame.buffer))
@@ -74,15 +74,15 @@ class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
     }, 10L)
   }
 
-  @ReactProp(name = "videoTrackId")
-  override fun setVideoTrackId(view: WebrtcFabric, value: String?) {
+  @ReactProp(name = "videoStreamTrackId")
+  override fun setVideoStreamTrackId(view: WebrtcFabric, value: String?) {
     currentView = view
-    this.videoTrackId = value ?: ""
+    this.videoStreamTrackId = value ?: ""
   }
 
-  @ReactProp(name = "audioTrackId")
-  override fun setAudioTrackId(view: WebrtcFabric, value: String?) {
-    this.audioTrackId = value ?: ""
+  @ReactProp(name = "audioStreamTrackId")
+  override fun setAudioStreamTrackId(view: WebrtcFabric, value: String?) {
+    this.audioStreamTrackId = value ?: ""
   }
 
   companion object {

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "bridgeType.h"
-#include "ffmpeg.h"
 #include <WebrtcSpecJSI.h>
 #include <memory>
 #include <string>
@@ -18,26 +17,30 @@ class NativeDatachannelModule
 	void closePeerConnection(jsi::Runtime &rt, const std::string &pc);
 	void deletePeerConnection(jsi::Runtime &rt, const std::string &pc);
 
-	std::string addTrack(jsi::Runtime &rt, const std::string &pc,
-	                     const std::string &kind,
-	                     rtc::Description::Direction direction);
+	std::string createMediaStreamTrack(jsi::Runtime &rt);
+	void deleteMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
+
+	std::string addTransceiver(jsi::Runtime &rt, const std::string &pc,
+	                           const std::string &kind,
+	                           rtc::Description::Direction direction,
+	                           const std::string &sendms,
+	                           const std::string &recvms,
+	                           const std::string &type);
 
 	std::string createOffer(jsi::Runtime &rt, const std::string &pc);
 	std::string createAnswer(jsi::Runtime &rt, const std::string &pc);
 
 	std::string getLocalDescription(jsi::Runtime &rt, const std::string &pc);
 	void setLocalDescription(jsi::Runtime &rt, const std::string &pc,
-	                         rtc::Description::Type type);
+	                         const std::string &sdp);
 
 	std::string getRemoteDescription(jsi::Runtime &rt, const std::string &pc);
 	void setRemoteDescription(jsi::Runtime &rt, const std::string &pc,
-	                          const std::string &sdp,
-	                          rtc::Description::Type type);
+	                          const std::string &sdp);
 
 	void addRemoteCandidate(jsi::Runtime &rt, const std::string &pc,
 	                        const std::string &candidate,
 	                        const std::string &mid);
 };
-std::optional<RGBAFrame> getTrackBuffer(const std::string &tr);
 
 } // namespace facebook::react

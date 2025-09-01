@@ -1,5 +1,5 @@
 #import "WebrtcView.h"
-#import "NativeDatachannelModule.h"
+#import "MediaStreamTrack.h"
 
 #import <react/renderer/components/WebrtcSpec/ComponentDescriptors.h>
 #import <react/renderer/components/WebrtcSpec/EventEmitters.h>
@@ -18,8 +18,8 @@ using namespace facebook::react;
   UIView * _view;
   UIImageView * _imageView;
   CIContext * _ciContext;
-  std::string _currentVideoTrackId;
-  std::string _currentAudioTrackId;
+  std::string _currentVideoStreamTrackId;
+  std::string _currentAudioStreamTrackId;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -53,11 +53,11 @@ using namespace facebook::react;
   
   const auto &oldViewProps = *std::static_pointer_cast<WebrtcFabricProps const>(_props);
   const auto &newViewProps = *std::static_pointer_cast<WebrtcFabricProps const>(props);
-  if (oldViewProps.videoTrackId != newViewProps.videoTrackId) {
-    _currentVideoTrackId = newViewProps.videoTrackId;
+  if (oldViewProps.videoStreamTrackId != newViewProps.videoStreamTrackId) {
+    _currentVideoStreamTrackId = newViewProps.videoStreamTrackId;
   }
-  if (oldViewProps.audioTrackId != newViewProps.audioTrackId) {
-    _currentAudioTrackId = newViewProps.audioTrackId;
+  if (oldViewProps.audioStreamTrackId != newViewProps.audioStreamTrackId) {
+    _currentAudioStreamTrackId = newViewProps.audioStreamTrackId;
   }
   
   [super updateProps:props oldProps:oldProps];
@@ -76,53 +76,50 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
 - (void)updateFrame {
   
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-    std::optional<RGBAFrame> rgbaFrame = getTrackBuffer(self->_currentVideoTrackId);
-    if (!rgbaFrame.has_value()) {
+    if (self->_currentVideoStreamTrackId.empty()) {
       return;
     }
-    NSData* resultData = [NSData dataWithBytes:rgbaFrame->data.data() length:rgbaFrame->data.size()];
-    [self displayImageFromRGBAData:resultData width:rgbaFrame->width height:rgbaFrame->height linesize:rgbaFrame->linesize];
-  });
-}
 
-- (void)displayImageFromRGBAData:(NSData *)data width:(int)width height:(int)height linesize:(int)linesize {
-  if (!data || data.length == 0) {
-    return;
-  }
-  
-  CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, data.bytes, data.length, NULL);
-  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-  CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast;
-  CGImageRef cgImage = CGImageCreate(
-                                     width,                          // width
-                                     height,                         // height
-                                     8,                              // bitsPerComponent
-                                     32,                             // bitsPerPixel (RGBA = 8*4)
-                                     linesize,                       // bytesPerRow
-                                     colorSpace,                     // colorSpace
-                                     bitmapInfo,                     // bitmapInfo
-                                     dataProvider,                   // dataProvider
-                                     NULL,                           // decode
-                                     false,                          // shouldInterpolate
-                                     kCGRenderingIntentDefault       // intent
-                                     );
-  
-  if (cgImage) {
-    CIImage *ciImage = [CIImage imageWithCGImage:cgImage];
-    CGImageRef outputCGImage = [_ciContext createCGImage:ciImage fromRect:ciImage.extent];
-    UIImage *uiImage = [UIImage imageWithCGImage:outputCGImage];
-    
-    dispatch_async(dispatch_get_main_queue(), ^{
-      self->_imageView.image = uiImage;
-      self->_imageView.frame = self->_view.bounds;
-    });
-    
-    CGImageRelease(outputCGImage);
-    CGImageRelease(cgImage);
-  }
-  
-  CGColorSpaceRelease(colorSpace);
-  CGDataProviderRelease(dataProvider);
+    auto mediaStream = getMediaStreamTrack(self->_currentVideoStreamTrackId);
+    auto frame = mediaStream->pop(AV_PIX_FMT_RGBA);
+    if (!frame) {
+      return;
+    }
+   
+    CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, frame->data[0], frame->linesize[0]*frame->height, NULL);
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast;
+    CGImageRef cgImage = CGImageCreate(
+                                       frame->width,                          // width
+                                       frame->height,                         // height
+                                       8,                              // bitsPerComponent
+                                       32,                             // bitsPerPixel (RGBA = 8*4)
+                                       frame->linesize[0],                       // bytesPerRow
+                                       colorSpace,                     // colorSpace
+                                       bitmapInfo,                     // bitmapInfo
+                                       dataProvider,                   // dataProvider
+                                       NULL,                           // decode
+                                       false,                          // shouldInterpolate
+                                       kCGRenderingIntentDefault       // intent
+                                       );
+   
+    if (cgImage) {
+      CIImage *ciImage = [CIImage imageWithCGImage:cgImage];
+      CGImageRef outputCGImage = [self->_ciContext createCGImage:ciImage fromRect:ciImage.extent];
+      UIImage *uiImage = [UIImage imageWithCGImage:outputCGImage];
+     
+      dispatch_async(dispatch_get_main_queue(), ^{
+        self->_imageView.image = uiImage;
+        self->_imageView.frame = self->_view.bounds;
+      });
+     
+      CGImageRelease(outputCGImage);
+      CGImageRelease(cgImage);
+    }
+   
+    CGColorSpaceRelease(colorSpace);
+    CGDataProviderRelease(dataProvider);
+  });
 }
 
 @end

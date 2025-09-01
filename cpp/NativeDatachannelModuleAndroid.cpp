@@ -1,30 +1,34 @@
-#include "NativeDatachannelModule.h"
+#include "MediaStreamTrack.h"
 #include <jni.h>
 #include <string>
 
 namespace facebook::react {
 extern "C" {
-JNIEXPORT jobject JNICALL Java_com_webrtc_WebrtcFabricManager_getTrackBuffer(
-    JNIEnv *env, jobject, jstring trackId) {
+JNIEXPORT jobject JNICALL Java_com_webrtc_WebrtcFabricManager_popVideoStream(
+    JNIEnv *env, jobject, jstring id) {
 
-	const char *trackIdChars = env->GetStringUTFChars(trackId, nullptr);
-	std::string trackIdStr(trackIdChars);
-	env->ReleaseStringUTFChars(trackId, trackIdChars);
-
-	std::optional<RGBAFrame> frame = getTrackBuffer(trackIdStr);
-	if (!frame.has_value()) {
+	const char *idChars = env->GetStringUTFChars(id, nullptr);
+	std::string idStr(idChars);
+	env->ReleaseStringUTFChars(id, idChars);
+	if (idStr.empty()) {
 		return nullptr;
 	}
 
-	jbyteArray byteArray = env->NewByteArray(frame->data.size());
-	env->SetByteArrayRegion(
-	    byteArray, 0, frame->data.size(),
-	    reinterpret_cast<const jbyte *>(frame->data.data()));
+	auto mediaStreamTrack = getMediaStreamTrack(idStr);
+	auto frame = mediaStreamTrack->pop(AV_PIX_FMT_RGBA);
+	if (!frame) {
+		return nullptr;
+	}
+
+	int size = frame->linesize[0] * frame->height;
+	jbyteArray byteArray = env->NewByteArray(size);
+	env->SetByteArrayRegion(byteArray, 0, size,
+	                        reinterpret_cast<const jbyte *>(frame->data[0]));
 	jclass RGBAFrameClass = env->FindClass("com/webrtc/RGBAFrame");
 	jmethodID constructor =
 	    env->GetMethodID(RGBAFrameClass, "<init>", "(III[B)V");
 	return env->NewObject(RGBAFrameClass, constructor, frame->width,
-	                      frame->height, frame->linesize, byteArray);
+	                      frame->height, frame->linesize[0], byteArray);
 }
 }
 } // namespace facebook::react

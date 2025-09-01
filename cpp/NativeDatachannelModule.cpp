@@ -1,4 +1,5 @@
 #include "NativeDatachannelModule.h"
+#include "MediaStreamTrack.h"
 #include "guid.h"
 #include <iostream>
 #include <mutex>
@@ -10,7 +11,6 @@ std::mutex mutex;
 std::unordered_map<std::string, std::shared_ptr<rtc::PeerConnection>>
     peerConnectionMap;
 std::unordered_map<std::string, std::shared_ptr<rtc::Track>> trackMap;
-std::unordered_map<std::string, std::shared_ptr<Decoder>> decoderMap;
 
 std::shared_ptr<rtc::PeerConnection> getPeerConnection(const std::string &id) {
 	std::lock_guard lock(mutex);
@@ -40,21 +40,6 @@ std::string emplaceTrack(std::shared_ptr<rtc::Track> ptr) {
 	std::string id = genUUIDV4();
 	trackMap.emplace(std::make_pair(id, ptr));
 	return id;
-}
-
-std::shared_ptr<Decoder> getDecoder(const std::string &id) {
-	std::lock_guard lock(mutex);
-	if (auto it = decoderMap.find(id); it != decoderMap.end())
-		return it->second;
-	else
-		return nullptr;
-}
-
-std::string emplaceDecoder(std::shared_ptr<Decoder> ptr,
-                           const std::string &tr) {
-	std::lock_guard lock(mutex);
-	decoderMap.emplace(std::make_pair(tr, ptr));
-	return tr;
 }
 
 rtc::Description::Media::RtpMap
@@ -121,15 +106,36 @@ void NativeDatachannelModule::deletePeerConnection(jsi::Runtime &rt,
 	peerConnectionMap.erase(pc);
 }
 
-std::string
-NativeDatachannelModule::addTrack(jsi::Runtime &rt, const std::string &pc,
-                                  const std::string &kind,
-                                  rtc::Description::Direction direction) {
+std::string NativeDatachannelModule::createMediaStreamTrack(jsi::Runtime &rt) {
+	auto mediaStreamTrack = std::make_shared<MediaStreamTrack>();
+	return emplaceMediaStreamTrack(mediaStreamTrack);
+}
+
+void NativeDatachannelModule::deleteMediaStreamTrack(jsi::Runtime &rt,
+                                                     const std::string &id) {
+	eraseMediaStreamTrack(id);
+}
+
+std::string NativeDatachannelModule::addTransceiver(
+    jsi::Runtime &rt, const std::string &pc, const std::string &kind,
+    rtc::Description::Direction direction, const std::string &sendms,
+    const std::string &recvms, const std::string &type) {
 
 	uint32_t ssrc = random() % UINT32_MAX;
 	static int mid = 0;
 	// mid++;
 	std::string midStr = std::to_string(mid);
+
+	std::shared_ptr<MediaStreamTrack> sendStream;
+	std::shared_ptr<MediaStreamTrack> recvStream;
+	if (direction == rtc::Description::Direction::SendRecv) {
+		sendStream = getMediaStreamTrack(sendms);
+		recvStream = getMediaStreamTrack(recvms);
+	} else if (direction == rtc::Description::Direction::SendOnly) {
+		sendStream = getMediaStreamTrack(sendms);
+	} else if (direction == rtc::Description::Direction::RecvOnly) {
+		recvStream = getMediaStreamTrack(recvms);
+	}
 
 	auto peerConnection = getPeerConnection(pc);
 	std::shared_ptr<rtc::Track> track;
@@ -147,12 +153,8 @@ NativeDatachannelModule::addTrack(jsi::Runtime &rt, const std::string &pc,
 	} else {
 		throw std::runtime_error("Unsupported transceiver kind: " + kind);
 	}
-	std::string tr = emplaceTrack(track);
 
-	track->onOpen([pc, tr]() {
-		auto peerConnection = getPeerConnection(pc);
-		auto track = getTrack(tr);
-
+	track->onOpen([peerConnection, track, recvStream]() {
 		auto rtpMap = negotiateCodec(
 		    peerConnection->remoteDescription().value(), track->description());
 
@@ -176,14 +178,30 @@ NativeDatachannelModule::addTrack(jsi::Runtime &rt, const std::string &pc,
 		}
 
 		auto decoder = std::make_shared<Decoder>(avCodecId);
-		emplaceDecoder(decoder, tr);
 
-		track->onFrame([tr](rtc::binary frame, rtc::FrameInfo info) {
-			auto decoder = getDecoder(tr);
-			decoder->sendPacket(frame);
+		track->onFrame([decoder, recvStream](rtc::binary binary,
+		                                     rtc::FrameInfo info) {
+			auto packet = createAVPacket();
+			if (!packet)
+				throw std::runtime_error("Could not allocate AVPacket");
+
+			if (av_new_packet(packet.get(), static_cast<int>(binary.size())) <
+			    0) {
+				throw std::runtime_error("Could not allocate AVPacket data");
+			}
+			std::memcpy(packet->data,
+			            reinterpret_cast<const void *>(binary.data()),
+			            binary.size());
+			packet->pts = info.timestamp;
+			packet->dts = info.timestamp;
+
+			auto frames = decoder->decode(packet);
+			for (auto frame : frames) {
+				recvStream->push(frame);
+			}
 		});
 	});
-	return tr;
+	return emplaceTrack(track);
 }
 
 std::string NativeDatachannelModule::createOffer(jsi::Runtime &rt,
@@ -211,10 +229,11 @@ NativeDatachannelModule::getLocalDescription(jsi::Runtime &rt,
 
 void NativeDatachannelModule::setLocalDescription(jsi::Runtime &rt,
                                                   const std::string &pc,
-                                                  rtc::Description::Type type) {
+                                                  const std::string &sdp) {
 
 	auto peerConnection = getPeerConnection(pc);
-	peerConnection->setLocalDescription(type);
+	rtc::Description description(sdp);
+	peerConnection->setLocalDescription(description.type());
 }
 
 std::string
@@ -228,12 +247,12 @@ NativeDatachannelModule::getRemoteDescription(jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannelModule::setRemoteDescription(
-    jsi::Runtime &rt, const std::string &pc, const std::string &sdp,
-    rtc::Description::Type type) {
+void NativeDatachannelModule::setRemoteDescription(jsi::Runtime &rt,
+                                                   const std::string &pc,
+                                                   const std::string &sdp) {
 
 	auto peerConnection = getPeerConnection(pc);
-	rtc::Description description(sdp, type);
+	rtc::Description description(sdp);
 	peerConnection->setRemoteDescription(description);
 }
 
@@ -244,17 +263,6 @@ void NativeDatachannelModule::addRemoteCandidate(jsi::Runtime &rt,
 	auto peerConnection = getPeerConnection(pc);
 	rtc::Candidate cand(candidate, mid);
 	peerConnection->addRemoteCandidate(cand);
-}
-
-std::optional<RGBAFrame> getTrackBuffer(const std::string &tr) {
-	if (tr.empty()) {
-		return std::nullopt;
-	}
-	auto decoder = getDecoder(tr);
-	if (!decoder) {
-		return std::nullopt;
-	}
-	return decoder->receiveFrame();
 }
 
 } // namespace facebook::react

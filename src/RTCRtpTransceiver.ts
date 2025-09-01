@@ -27,23 +27,35 @@ export class RTCRtpSender {
 }
 
 export class RTCRtpTransceiver {
+  mid: string | null = null;
+  currentDirection: RTCRtpTransceiverDirection | null = null;
+  direction: RTCRtpTransceiverDirection;
+  kind: 'audio' | 'video';
   readonly receiver: RTCRtpReceiver;
   readonly sender: RTCRtpSender;
 
   constructor(
-    pcid: string,
-    kind: 'audio' | 'video',
+    trackOrKind: MediaStreamTrack | 'audio' | 'video',
     init?: RTCRtpTransceiverInit
   ) {
-    const direction = init?.direction || 'sendrecv';
+    this.direction = init?.direction || 'sendrecv';
     let sendTrack: MediaStreamTrack | null = null;
     let recvTrack: MediaStreamTrack | null = null;
-
-    if (direction.includes('send')) {
-      sendTrack = new MediaStreamTrack(pcid, kind, 'sendonly');
-    }
-    if (direction.includes('recv')) {
-      recvTrack = new MediaStreamTrack(pcid, kind, 'recvonly');
+    if (trackOrKind instanceof MediaStreamTrack) {
+      this.kind = trackOrKind.kind;
+      if (this.direction === 'sendonly') {
+        sendTrack = trackOrKind;
+      } else if (this.direction === 'recvonly') {
+        recvTrack = trackOrKind;
+      }
+    } else {
+      this.kind = trackOrKind;
+      if (this.direction.includes('send')) {
+        sendTrack = new MediaStreamTrack(this.kind);
+      }
+      if (this.direction.includes('recv')) {
+        recvTrack = new MediaStreamTrack(this.kind);
+      }
     }
 
     this.sender = new RTCRtpSender(sendTrack);

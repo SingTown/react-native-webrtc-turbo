@@ -3,6 +3,7 @@ import NativeDatachannelModule from './NativeDatachannelModule';
 import { RTCRtpTransceiver } from './RTCRtpTransceiver';
 import type { RTCRtpTransceiverInit } from './RTCRtpTransceiver';
 import { RTCTrackEvent } from './RTCTrackEvent';
+import type { MediaStreamTrack } from './MediaStreamTrack';
 
 export interface RTCIceServer {
   credential?: string;
@@ -22,6 +23,7 @@ export interface RTCSessionDescriptionInit {
 
 export class RTCPeerConnection {
   private pc: string;
+  private transceivers: RTCRtpTransceiver[] = [];
   private onLocalCandidateCallback: EventSubscription;
 
   public onicecandidate: ((candidate: string) => void) | null = null;
@@ -76,20 +78,49 @@ export class RTCPeerConnection {
     NativeDatachannelModule.closePeerConnection(this.pc);
   }
 
-  addTransceiver(kind: 'audio' | 'video', init?: RTCRtpTransceiverInit) {
-    const transceiver = new RTCRtpTransceiver(this.pc, kind, init);
+  addTransceiver(
+    trackOrKind: MediaStreamTrack | 'audio' | 'video',
+    init?: RTCRtpTransceiverInit
+  ) {
+    const transceiver = new RTCRtpTransceiver(trackOrKind, init);
     if (this.ontrack && transceiver.receiver.track) {
       this.ontrack(new RTCTrackEvent(transceiver));
     }
+    this.transceivers.push(transceiver);
     return transceiver;
   }
 
+  getTransceivers() {
+    return this.transceivers;
+  }
+
   createOffer(): RTCSessionDescriptionInit {
+    for (const transceiver of this.transceivers) {
+      NativeDatachannelModule.addTransceiver(
+        this.pc,
+        transceiver.kind,
+        transceiver.direction,
+        transceiver.sender.track?.id || '',
+        transceiver.receiver.track?.id || '',
+        'offer'
+      );
+    }
     const sdp = NativeDatachannelModule.createOffer(this.pc);
     return { sdp, type: 'offer' };
   }
 
   createAnswer(): RTCSessionDescriptionInit {
+    for (const transceiver of this.transceivers) {
+      NativeDatachannelModule.addTransceiver(
+        this.pc,
+        transceiver.kind,
+        transceiver.direction,
+        transceiver.sender.track?.id || '',
+        transceiver.receiver.track?.id || '',
+        'answer'
+      );
+    }
+
     const sdp = NativeDatachannelModule.createAnswer(this.pc);
     return { sdp, type: 'answer' };
   }
@@ -99,15 +130,15 @@ export class RTCPeerConnection {
   }
 
   setLocalDescription(description: RTCSessionDescriptionInit) {
-    NativeDatachannelModule.setLocalDescription(this.pc, description.type);
+    NativeDatachannelModule.setLocalDescription(this.pc, description.sdp || '');
   }
 
   get remoteDescription(): string {
     return NativeDatachannelModule.getRemoteDescription(this.pc);
   }
 
-  setRemoteDescription(sdp: string, type: string) {
-    NativeDatachannelModule.setRemoteDescription(this.pc, sdp, type);
+  setRemoteDescription(sdp: string) {
+    NativeDatachannelModule.setRemoteDescription(this.pc, sdp);
   }
 
   setRemoteCandidate(candidate: string, mid: string) {

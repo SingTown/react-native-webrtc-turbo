@@ -2,15 +2,11 @@ import NativeDatachannelModule from './NativeDatachannelModule';
 
 export class MediaStreamTrack {
   enabled: boolean = true;
+  readonly kind: 'audio' | 'video';
   readonly id: string;
-  readonly kind: string;
 
-  constructor(
-    pcid: string,
-    kind: 'audio' | 'video',
-    direction: 'sendonly' | 'recvonly'
-  ) {
+  constructor(kind: 'audio' | 'video') {
     this.kind = kind;
-    this.id = NativeDatachannelModule.addTrack(pcid, kind, direction);
+    this.id = NativeDatachannelModule.createMediaStreamTrack();
   }
 }
