@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-std::string genUUIDV4() {
+inline std::string genUUIDV4() {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<uint32_t> dis(0, 0xFFFFFFFF);
