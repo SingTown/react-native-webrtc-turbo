@@ -32,12 +32,13 @@ for i in "${!SDKS[@]}"; do
             --enable-swscale \
             --enable-avutil \
             --disable-audiotoolbox \
-            --disable-videotoolbox \
+            --enable-videotoolbox \
             --disable-mediacodec \
             --enable-decoder=h264 \
             --enable-decoder=hevc \
             --enable-parser=h264 \
-            --enable-parser=hevc
+            --enable-parser=hevc \
+            --enable-encoder=h264_videotoolbox
 
         make -j install
         libtool -static -o libffmpeg.a \

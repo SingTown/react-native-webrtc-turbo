@@ -40,11 +40,13 @@ for i in "${!ARCHS[@]}"; do
             --enable-avutil \
             --disable-audiotoolbox \
             --disable-videotoolbox \
-            --disable-mediacodec \
+            --enable-mediacodec \
+            --enable-jni \
             --enable-decoder=h264 \
             --enable-decoder=hevc \
             --enable-parser=h264 \
-            --enable-parser=hevc
+            --enable-parser=hevc \
+            --enable-encoder=h264_mediacodec
 
         make -j install
     )
