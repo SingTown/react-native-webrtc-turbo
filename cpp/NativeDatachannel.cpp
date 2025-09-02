@@ -1,5 +1,6 @@
 #include "NativeDatachannel.h"
 #include "MediaStreamTrack.h"
+#include "RTCRtpReceiver.h"
 #include "guid.h"
 #include <iostream>
 #include <mutex>
@@ -40,33 +41,6 @@ std::string emplaceTrack(std::shared_ptr<rtc::Track> ptr) {
 	std::string id = genUUIDV4();
 	trackMap.emplace(std::make_pair(id, ptr));
 	return id;
-}
-
-rtc::Description::Media::RtpMap
-negotiateCodec(const rtc::Description &remoteDesc,
-               const rtc::Description::Media trackMedia) {
-	for (int i = 0; i < remoteDesc.mediaCount(); i++) {
-		auto remoteMediaVar = remoteDesc.media(i);
-		if (!std::holds_alternative<const rtc::Description::Media *>(
-		        remoteMediaVar))
-			continue;
-		auto remoteMedia =
-		    std::get<const rtc::Description::Media *>(remoteMediaVar);
-
-		if (remoteMedia->type() != trackMedia.type())
-			continue;
-
-		for (auto remotePt : remoteMedia->payloadTypes()) {
-			for (auto trackPt : trackMedia.payloadTypes()) {
-				if (remotePt != trackPt)
-					continue;
-
-				return *trackMedia.rtpMap(remotePt);
-			}
-		}
-	}
-
-	throw std::runtime_error("No matching codec found for negotiation");
 }
 
 namespace facebook::react {
@@ -153,52 +127,14 @@ std::string NativeDatachannel::addTransceiver(
 		throw std::runtime_error("Unsupported transceiver kind: " + kind);
 	}
 
-	track->onOpen([peerConnection, track, recvStream]() {
-		auto rtpMap = negotiateCodec(
-		    peerConnection->remoteDescription().value(), track->description());
-
-		// printf("negotiate PayloadType: %d, format: %s\n", rtpMap.payloadType,
-		//        rtpMap.format.c_str());
-
-		AVCodecID avCodecId;
-		auto separator = rtc::NalUnit::Separator::StartSequence;
-		if (rtpMap.format == "H265") {
-			auto depacketizer =
-			    std::make_shared<rtc::H265RtpDepacketizer>(separator);
-			track->setMediaHandler(depacketizer);
-			avCodecId = AV_CODEC_ID_H265;
-		} else if (rtpMap.format == "H264") {
-			auto depacketizer =
-			    std::make_shared<rtc::H264RtpDepacketizer>(separator);
-			track->setMediaHandler(depacketizer);
-			avCodecId = AV_CODEC_ID_H264;
-		} else {
-			throw std::runtime_error("Unsupported codec: " + rtpMap.format);
+	track->onOpen([peerConnection, track, sendStream, recvStream]() {
+		if (sendStream) {
+			SenderOnOpen(peerConnection, sendStream, track);
 		}
 
-		auto decoder = std::make_shared<Decoder>(avCodecId);
-
-		track->onFrame([decoder, recvStream](rtc::binary binary,
-		                                     rtc::FrameInfo info) {
-			auto packet = createAVPacket();
-			if (!packet)
-				throw std::runtime_error("Could not allocate AVPacket");
-
-			if (av_new_packet(packet.get(), static_cast<int>(binary.size())) <
-			    0) {
-				throw std::runtime_error("Could not allocate AVPacket data");
-			}
-			std::memcpy(packet->data,
-			            reinterpret_cast<const void *>(binary.data()),
-			            binary.size());
-			packet->pts = info.timestamp;
-			packet->dts = info.timestamp;
-
-			auto frames = decoder->decode(packet);
-			for (auto frame : frames) {
-				recvStream->push(frame);
-			}
-		});
+		if (recvStream) {
+			ReceiverOnOpen(peerConnection, recvStream, track);
+		}
 	});
 	return emplaceTrack(track);
 }

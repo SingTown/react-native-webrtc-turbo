@@ -13,6 +13,101 @@ extern "C" {
 #undef AVMediaType
 }
 
+class Encoder {
+  private:
+	const AVCodec *encoder;
+	AVCodecContext *ctx;
+	std::mutex mutex;
+
+	void destroy() {
+		avcodec_send_frame(ctx, nullptr);
+		AVPacket *pkt = av_packet_alloc();
+		while (avcodec_receive_packet(ctx, pkt) == 0) {
+			av_packet_unref(pkt);
+		}
+		av_packet_free(&pkt);
+		avcodec_free_context(&ctx);
+		ctx = nullptr;
+	}
+
+  public:
+	Encoder(const std::string &name) {
+		encoder = avcodec_find_encoder_by_name(name.c_str());
+		if (encoder) {
+			printf("h264_videotoolbox enabled\n");
+		} else {
+			printf("not enabled\n");
+		}
+		if (!encoder)
+			throw std::runtime_error("Could not find encoder");
+	}
+
+	std::vector<std::shared_ptr<AVPacket>>
+	encode(std::shared_ptr<AVFrame> frame) {
+		std::lock_guard lock(mutex);
+		if (!frame) {
+			throw std::runtime_error("frame is nullptr");
+		}
+		if (ctx) {
+			if (ctx->width != frame->width || ctx->height != frame->height ||
+			    ctx->pix_fmt != frame->format) {
+				printf("destroy ctx: %p\n", ctx);
+				destroy();
+			}
+		}
+
+		if (!ctx) {
+			printf("init ctx\n");
+			// init
+			ctx = avcodec_alloc_context3(encoder);
+			if (!ctx)
+				throw std::runtime_error("Could not allocate AVCodecContext");
+
+			ctx->width = frame->width;
+			ctx->height = frame->height;
+			ctx->time_base = (AVRational){1, 90000};
+			ctx->framerate = (AVRational){30, 1};
+			ctx->bit_rate = 1000000; // 1Mbps ~ 130KB/s
+			ctx->gop_size = 60;
+			ctx->max_b_frames = 0;
+			ctx->pix_fmt = AV_PIX_FMT_NV12;
+			ctx->color_range = AVCOL_RANGE_MPEG;
+			ctx->color_primaries = AVCOL_PRI_BT709;
+			ctx->color_trc = AVCOL_TRC_BT709;
+			ctx->colorspace = AVCOL_SPC_BT709;
+			ctx->profile = FF_PROFILE_H264_MAIN;
+			ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+			if (avcodec_open2(ctx, encoder, NULL) < 0)
+				throw std::runtime_error("Could not open codec");
+		}
+
+		int ret = avcodec_send_frame(ctx, frame.get());
+		if (ret < 0) {
+			char errbuf[128];
+			av_strerror(ret, errbuf, sizeof(errbuf));
+			throw std::runtime_error("Error sending frame");
+		}
+
+		std::vector<std::shared_ptr<AVPacket>> packets;
+		while (1) {
+			std::shared_ptr<AVPacket> packet(
+			    av_packet_alloc(), [](AVPacket *f) { av_packet_free(&f); });
+			if (!packet)
+				throw std::runtime_error("Could not allocate AVPacket");
+
+			int ret = avcodec_receive_packet(ctx, packet.get());
+			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+				break;
+			else if (ret < 0)
+				throw std::runtime_error("Error during decoding");
+			packets.push_back(packet);
+		}
+		return packets;
+	}
+
+	~Encoder() { destroy(); }
+};
+
 class Decoder {
   private:
 	AVCodecContext *ctx;
