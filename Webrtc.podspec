@@ -13,16 +13,7 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => min_ios_version_supported }
   s.source       = { :git => "https://github.com/singtown/react-native-webrtc-turbo.git", :tag => "#{s.version}" }
 
-  s.source_files = [
-    "ios/**/*.{h,m,mm,cpp}",
-    "cpp/bridgeType.h",
-    "cpp/guid.h",
-    "cpp/ffmpeg.h",
-    "cpp/MediaStreamTrack.h",
-    "cpp/MediaStreamTrack.cpp",
-    "cpp/NativeDatachannel.cpp",
-    "cpp/NativeDatachannel.h",
-  ]
+  s.source_files = "ios/**/*.{h,m,mm,cpp}", "cpp/**/*.{h,m,mm,cpp}"
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
   s.vendored_frameworks = "3rdparty/output/ios/*.xcframework"
   s.frameworks = 'AVFoundation', 'CoreMedia', 'CoreVideo', 'VideoToolbox'

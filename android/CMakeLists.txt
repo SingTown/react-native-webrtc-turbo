@@ -6,12 +6,13 @@ set (CMAKE_VERBOSE_MAKEFILE ON)
 set(LIBDATACHANNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/output/android/libdatachannel/${ANDROID_ABI})
 set(FFMPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/output/android/ffmpeg/${ANDROID_ABI})
 
+file(GLOB CPP_SOURCES "../cpp/*.cpp")
+
 add_library(
     datachannel-module
     SHARED
-    ../cpp/MediaStreamTrack.cpp
-    ../cpp/NativeDatachannel.cpp
-    ../cpp/NativeDatachannelModuleAndroid.cpp
+    ${CPP_SOURCES}
+    src/main/cpp/MediaStreamTrackAndroid.cpp
 )
 
 # Specifies a path to native header files.
