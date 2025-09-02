@@ -10,7 +10,7 @@ add_library(
     datachannel-module
     SHARED
     ../cpp/MediaStreamTrack.cpp
-    ../cpp/NativeDatachannelModule.cpp
+    ../cpp/NativeDatachannel.cpp
     ../cpp/NativeDatachannelModuleAndroid.cpp
 )
 

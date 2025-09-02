@@ -13,7 +13,7 @@ module.exports = {
       android: {
         cxxModuleCMakeListsPath: 'CMakeLists.txt',
         cxxModuleCMakeListsModuleName: 'datachannel-module',
-        cxxModuleHeaderName: 'NativeDatachannelModule',
+        cxxModuleHeaderName: 'NativeDatachannel',
       },
     },
   },

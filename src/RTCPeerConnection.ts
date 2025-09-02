@@ -1,5 +1,5 @@
 import type { EventSubscription } from 'react-native';
-import NativeDatachannelModule from './NativeDatachannelModule';
+import NativeDatachannel from './NativeDatachannel';
 import { RTCRtpTransceiver } from './RTCRtpTransceiver';
 import type { RTCRtpTransceiverInit } from './RTCRtpTransceiver';
 import { RTCTrackEvent } from './RTCTrackEvent';
@@ -33,8 +33,8 @@ export class RTCPeerConnection {
     const servers = this.convertIceServersToUrls(
       configuration?.iceServers || []
     );
-    this.pc = NativeDatachannelModule.createPeerConnection(servers);
-    this.onLocalCandidateCallback = NativeDatachannelModule.onLocalCandidate(
+    this.pc = NativeDatachannel.createPeerConnection(servers);
+    this.onLocalCandidateCallback = NativeDatachannel.onLocalCandidate(
       (obj) => {
         if (obj.pc !== this.pc || !this.onicecandidate) {
           return;
@@ -75,7 +75,7 @@ export class RTCPeerConnection {
 
   close() {
     this.onLocalCandidateCallback.remove();
-    NativeDatachannelModule.closePeerConnection(this.pc);
+    NativeDatachannel.closePeerConnection(this.pc);
   }
 
   addTransceiver(
@@ -96,7 +96,7 @@ export class RTCPeerConnection {
 
   createOffer(): RTCSessionDescriptionInit {
     for (const transceiver of this.transceivers) {
-      NativeDatachannelModule.addTransceiver(
+      NativeDatachannel.addTransceiver(
         this.pc,
         transceiver.kind,
         transceiver.direction,
@@ -105,13 +105,13 @@ export class RTCPeerConnection {
         'offer'
       );
     }
-    const sdp = NativeDatachannelModule.createOffer(this.pc);
+    const sdp = NativeDatachannel.createOffer(this.pc);
     return { sdp, type: 'offer' };
   }
 
   createAnswer(): RTCSessionDescriptionInit {
     for (const transceiver of this.transceivers) {
-      NativeDatachannelModule.addTransceiver(
+      NativeDatachannel.addTransceiver(
         this.pc,
         transceiver.kind,
         transceiver.direction,
@@ -121,27 +121,27 @@ export class RTCPeerConnection {
       );
     }
 
-    const sdp = NativeDatachannelModule.createAnswer(this.pc);
+    const sdp = NativeDatachannel.createAnswer(this.pc);
     return { sdp, type: 'answer' };
   }
 
   get localDescription(): string {
-    return NativeDatachannelModule.getLocalDescription(this.pc);
+    return NativeDatachannel.getLocalDescription(this.pc);
   }
 
   setLocalDescription(description: RTCSessionDescriptionInit) {
-    NativeDatachannelModule.setLocalDescription(this.pc, description.sdp || '');
+    NativeDatachannel.setLocalDescription(this.pc, description.sdp || '');
   }
 
   get remoteDescription(): string {
-    return NativeDatachannelModule.getRemoteDescription(this.pc);
+    return NativeDatachannel.getRemoteDescription(this.pc);
   }
 
   setRemoteDescription(sdp: string) {
-    NativeDatachannelModule.setRemoteDescription(this.pc, sdp);
+    NativeDatachannel.setRemoteDescription(this.pc, sdp);
   }
 
   setRemoteCandidate(candidate: string, mid: string) {
-    NativeDatachannelModule.addRemoteCandidate(this.pc, candidate, mid);
+    NativeDatachannel.addRemoteCandidate(this.pc, candidate, mid);
   }
 }

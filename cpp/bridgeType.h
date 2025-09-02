@@ -6,11 +6,10 @@
 namespace facebook::react {
 
 using LocalCandidate =
-    NativeDatachannelModuleLocalCandidate<std::string, std::string,
-                                          std::string>;
+    NativeDatachannelLocalCandidate<std::string, std::string, std::string>;
 template <>
 struct Bridging<LocalCandidate>
-    : NativeDatachannelModuleLocalCandidateBridging<LocalCandidate> {};
+    : NativeDatachannelLocalCandidateBridging<LocalCandidate> {};
 
 template <> struct Bridging<rtc::Description::Direction> {
 	static rtc::Description::Direction fromJs(jsi::Runtime &rt,

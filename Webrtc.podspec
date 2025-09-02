@@ -20,8 +20,8 @@ Pod::Spec.new do |s|
     "cpp/ffmpeg.h",
     "cpp/MediaStreamTrack.h",
     "cpp/MediaStreamTrack.cpp",
-    "cpp/NativeDatachannelModule.cpp",
-    "cpp/NativeDatachannelModule.h",
+    "cpp/NativeDatachannel.cpp",
+    "cpp/NativeDatachannel.h",
   ]
   s.private_header_files = "ios/**/*.h", "cpp/**/*.h"
   s.vendored_frameworks = "3rdparty/output/ios/*.xcframework"

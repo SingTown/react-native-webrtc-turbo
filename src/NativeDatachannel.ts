@@ -39,6 +39,4 @@ export interface Spec extends TurboModule {
   onLocalCandidate: EventEmitter<LocalCandidate>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>(
-  'NativeDatachannelModule'
-);
+export default TurboModuleRegistry.getEnforcing<Spec>('NativeDatachannel');

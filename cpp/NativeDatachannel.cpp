@@ -1,4 +1,4 @@
-#include "NativeDatachannelModule.h"
+#include "NativeDatachannel.h"
 #include "MediaStreamTrack.h"
 #include "guid.h"
 #include <iostream>
@@ -71,11 +71,10 @@ negotiateCodec(const rtc::Description &remoteDesc,
 
 namespace facebook::react {
 
-NativeDatachannelModule::NativeDatachannelModule(
-    std::shared_ptr<CallInvoker> jsInvoker)
-    : NativeDatachannelModuleCxxSpec(std::move(jsInvoker)) {}
+NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
+    : NativeDatachannelCxxSpec(std::move(jsInvoker)) {}
 
-std::string NativeDatachannelModule::createPeerConnection(
+std::string NativeDatachannel::createPeerConnection(
     jsi::Runtime &rt, const std::vector<std::string> &servers) {
 	rtc::Configuration c;
 	for (const auto &server : servers) {
@@ -95,28 +94,28 @@ std::string NativeDatachannelModule::createPeerConnection(
 	return pc;
 }
 
-void NativeDatachannelModule::closePeerConnection(jsi::Runtime &rt,
-                                                  const std::string &pc) {
+void NativeDatachannel::closePeerConnection(jsi::Runtime &rt,
+                                            const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	peerConnection->close();
 }
 
-void NativeDatachannelModule::deletePeerConnection(jsi::Runtime &rt,
-                                                   const std::string &pc) {
+void NativeDatachannel::deletePeerConnection(jsi::Runtime &rt,
+                                             const std::string &pc) {
 	peerConnectionMap.erase(pc);
 }
 
-std::string NativeDatachannelModule::createMediaStreamTrack(jsi::Runtime &rt) {
+std::string NativeDatachannel::createMediaStreamTrack(jsi::Runtime &rt) {
 	auto mediaStreamTrack = std::make_shared<MediaStreamTrack>();
 	return emplaceMediaStreamTrack(mediaStreamTrack);
 }
 
-void NativeDatachannelModule::deleteMediaStreamTrack(jsi::Runtime &rt,
-                                                     const std::string &id) {
+void NativeDatachannel::deleteMediaStreamTrack(jsi::Runtime &rt,
+                                               const std::string &id) {
 	eraseMediaStreamTrack(id);
 }
 
-std::string NativeDatachannelModule::addTransceiver(
+std::string NativeDatachannel::addTransceiver(
     jsi::Runtime &rt, const std::string &pc, const std::string &kind,
     rtc::Description::Direction direction, const std::string &sendms,
     const std::string &recvms, const std::string &type) {
@@ -204,21 +203,20 @@ std::string NativeDatachannelModule::addTransceiver(
 	return emplaceTrack(track);
 }
 
-std::string NativeDatachannelModule::createOffer(jsi::Runtime &rt,
-                                                 const std::string &pc) {
+std::string NativeDatachannel::createOffer(jsi::Runtime &rt,
+                                           const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createOffer();
 }
 
-std::string NativeDatachannelModule::createAnswer(jsi::Runtime &rt,
-                                                  const std::string &pc) {
+std::string NativeDatachannel::createAnswer(jsi::Runtime &rt,
+                                            const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createAnswer();
 }
 
-std::string
-NativeDatachannelModule::getLocalDescription(jsi::Runtime &rt,
-                                             const std::string &pc) {
+std::string NativeDatachannel::getLocalDescription(jsi::Runtime &rt,
+                                                   const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	auto sdp = peerConnection->localDescription();
 	if (!sdp.has_value()) {
@@ -227,18 +225,17 @@ NativeDatachannelModule::getLocalDescription(jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannelModule::setLocalDescription(jsi::Runtime &rt,
-                                                  const std::string &pc,
-                                                  const std::string &sdp) {
+void NativeDatachannel::setLocalDescription(jsi::Runtime &rt,
+                                            const std::string &pc,
+                                            const std::string &sdp) {
 
 	auto peerConnection = getPeerConnection(pc);
 	rtc::Description description(sdp);
 	peerConnection->setLocalDescription(description.type());
 }
 
-std::string
-NativeDatachannelModule::getRemoteDescription(jsi::Runtime &rt,
-                                              const std::string &pc) {
+std::string NativeDatachannel::getRemoteDescription(jsi::Runtime &rt,
+                                                    const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	auto sdp = peerConnection->remoteDescription();
 	if (!sdp.has_value()) {
@@ -247,19 +244,19 @@ NativeDatachannelModule::getRemoteDescription(jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannelModule::setRemoteDescription(jsi::Runtime &rt,
-                                                   const std::string &pc,
-                                                   const std::string &sdp) {
+void NativeDatachannel::setRemoteDescription(jsi::Runtime &rt,
+                                             const std::string &pc,
+                                             const std::string &sdp) {
 
 	auto peerConnection = getPeerConnection(pc);
 	rtc::Description description(sdp);
 	peerConnection->setRemoteDescription(description);
 }
 
-void NativeDatachannelModule::addRemoteCandidate(jsi::Runtime &rt,
-                                                 const std::string &pc,
-                                                 const std::string &candidate,
-                                                 const std::string &mid) {
+void NativeDatachannel::addRemoteCandidate(jsi::Runtime &rt,
+                                           const std::string &pc,
+                                           const std::string &candidate,
+                                           const std::string &mid) {
 	auto peerConnection = getPeerConnection(pc);
 	rtc::Candidate cand(candidate, mid);
 	peerConnection->addRemoteCandidate(cand);

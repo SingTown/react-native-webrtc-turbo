@@ -7,10 +7,9 @@
 
 namespace facebook::react {
 
-class NativeDatachannelModule
-    : public NativeDatachannelModuleCxxSpec<NativeDatachannelModule> {
+class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
   public:
-	NativeDatachannelModule(std::shared_ptr<CallInvoker> jsInvoker);
+	NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker);
 
 	std::string createPeerConnection(jsi::Runtime &rt,
 	                                 const std::vector<std::string> &servers);

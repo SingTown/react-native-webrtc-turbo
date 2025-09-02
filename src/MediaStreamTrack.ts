@@ -1,4 +1,4 @@
-import NativeDatachannelModule from './NativeDatachannelModule';
+import NativeDatachannel from './NativeDatachannel';
 
 export class MediaStreamTrack {
   enabled: boolean = true;
@@ -7,6 +7,6 @@ export class MediaStreamTrack {
 
   constructor(kind: 'audio' | 'video') {
     this.kind = kind;
-    this.id = NativeDatachannelModule.createMediaStreamTrack();
+    this.id = NativeDatachannel.createMediaStreamTrack();
   }
 }
