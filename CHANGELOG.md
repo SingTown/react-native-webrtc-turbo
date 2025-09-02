@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 (2025-09-02)
+
+* feat: add anwser ([e4e1f80](https://github.com/SingTown/react-native-webrtc-turbo/commit/e4e1f80))
+* feat: add NativeMediaDevice ([4e58ec1](https://github.com/SingTown/react-native-webrtc-turbo/commit/4e58ec1))
+* feat: enable encoder ([4d05372](https://github.com/SingTown/react-native-webrtc-turbo/commit/4d05372))
+* feat: example add Anwser ([e611c8f](https://github.com/SingTown/react-native-webrtc-turbo/commit/e611c8f))
+* feat: feat MediaStreamTrack cpp ([8ac45ff](https://github.com/SingTown/react-native-webrtc-turbo/commit/8ac45ff))
+* feat: rename file NativeDatachannel ([3399828](https://github.com/SingTown/react-native-webrtc-turbo/commit/3399828))
+* feat: rename MediaStreamTrackAndroid.cpp ([ce2e300](https://github.com/SingTown/react-native-webrtc-turbo/commit/ce2e300))
+* feat: xcode config ([12c9b67](https://github.com/SingTown/react-native-webrtc-turbo/commit/12c9b67))
+* fix: android register WebrtcViewPackage ([4aefc86](https://github.com/SingTown/react-native-webrtc-turbo/commit/4aefc86))
+* fix: camera hardware ([3dcebdf](https://github.com/SingTown/react-native-webrtc-turbo/commit/3dcebdf))
+* fix: inline ([6cf92c5](https://github.com/SingTown/react-native-webrtc-turbo/commit/6cf92c5))
+* fix: rename WebrtcFabric filename ([4483429](https://github.com/SingTown/react-native-webrtc-turbo/commit/4483429))
+
 ## 0.2.0 (2025-08-28)
 
 * chore: 3rdparty shared library in android ([d7162fa](https://github.com/SingTown/react-native-webrtc-turbo/commit/d7162fa))
