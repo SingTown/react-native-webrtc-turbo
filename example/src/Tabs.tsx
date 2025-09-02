@@ -27,12 +27,6 @@ export default function Tabs({ activeTab, setActiveTab }: TabsProps) {
   return (
     <View style={styles.tabContainer}>
       <Tab
-        title={'ICE\nServer'}
-        value="ICEServer"
-        isActive={activeTab === 'ICEServer'}
-        setActiveTab={setActiveTab}
-      />
-      <Tab
         title={'Local\nSDP'}
         value="LocalSDP"
         isActive={activeTab === 'LocalSDP'}
