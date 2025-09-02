@@ -1,11 +1,9 @@
 package com.webrtc
 
-import java.nio.ByteBuffer
 import android.graphics.*
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
-import androidx.core.graphics.createBitmap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
@@ -13,13 +11,8 @@ import com.facebook.react.uimanager.ViewManagerDelegate
 import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.viewmanagers.WebrtcFabricManagerInterface
 import com.facebook.react.viewmanagers.WebrtcFabricManagerDelegate
-
-class RGBAFrame(
-  val width: Int,
-  val height: Int,
-  val lineSize: Int,
-  val buffer: ByteArray,
-)
+import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 
 @ReactModule(name = WebrtcFabricManager.NAME)
 class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
@@ -27,11 +20,12 @@ class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
   private val mDelegate: ViewManagerDelegate<WebrtcFabric>
 
   private val frameHandler = Handler(Looper.getMainLooper())
+  private val frameExecutor: ExecutorService = Executors.newCachedThreadPool()
   private var currentView: WebrtcFabric? = null
   private var videoStreamTrackId: String = ""
   private var audioStreamTrackId: String = ""
 
-  external fun popVideoStream(id: String): RGBAFrame?
+  external fun popVideoStreamTrack(id: String): Bitmap?
 
   init {
     mDelegate = WebrtcFabricManagerDelegate(this)
@@ -39,18 +33,18 @@ class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
   }
 
   private fun updateFrame() {
-    currentView?.let { view ->
-      try {
-        val rgbaFrame = popVideoStream(videoStreamTrackId)
-          ?: return
-        val bitmap = createBitmap(rgbaFrame.width, rgbaFrame.height, Bitmap.Config.ARGB_8888)
-        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(rgbaFrame.buffer))
-
-        view.updateFrame(bitmap)
-        bitmap.recycle()
-
-      } catch (e: Exception) {
-        Log.e("WebrtcFabric", "Error updating frame", e)
+    frameExecutor.execute {
+      currentView?.let { view ->
+        try {
+          val bitmap = popVideoStreamTrack(videoStreamTrackId)
+            ?: return@execute
+          frameHandler.post {
+            view.updateFrame(bitmap)
+            bitmap.recycle()
+          }
+        } catch (e: Exception) {
+          Log.e("WebrtcFabric", "Error updating frame", e)
+        }
       }
     }
   }

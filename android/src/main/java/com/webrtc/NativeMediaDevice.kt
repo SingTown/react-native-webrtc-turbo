@@ -1,20 +1,10 @@
 package com.webrtc
 
 import android.Manifest
-import android.content.Context.CAMERA_SERVICE
 import com.facebook.react.bridge.ReactApplicationContext
-import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CaptureRequest
-import android.os.Handler
-import android.os.Looper
-import android.os.HandlerThread
-import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
-import androidx.core.app.ActivityCompat
 import android.content.pm.PackageManager
+import android.util.Log
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.modules.core.PermissionAwareActivity
@@ -22,48 +12,33 @@ import com.facebook.react.modules.core.PermissionAwareActivity
 class NativeMediaDeviceModule(reactContext: ReactApplicationContext) :
   NativeMediaDeviceSpec(reactContext) {
 
+  private val cameras = mutableMapOf<String, Camera>()
+
   override fun getName() = NAME
 
   @ReactMethod
-  override fun createCamera(ms: String, promise: Promise) {
+  override fun createCamera(mediaStreamTrackId: String, promise: Promise) {
     if (ContextCompat.checkSelfPermission(reactApplicationContext, Manifest.permission.CAMERA)
-        != PackageManager.PERMISSION_GRANTED) {
+      != PackageManager.PERMISSION_GRANTED
+    ) {
       promise.reject("PERMISSION_DENIED", "Camera permission is required")
       return
     }
-
-    try {
-      val cameraManager = reactApplicationContext.getSystemService(CAMERA_SERVICE) as CameraManager
-      val cameraId = cameraManager.cameraIdList[0]
-      val handler = Handler(Looper.getMainLooper())
-
-      cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-          override fun onOpened(camera: CameraDevice) {
-              promise.resolve("Camera opened successfully")
-          }
-
-          override fun onDisconnected(camera: CameraDevice) {
-              camera.close()
-              promise.reject("CAMERA_DISCONNECTED", "Camera was disconnected")
-          }
-
-          override fun onError(camera: CameraDevice, error: Int) {
-              camera.close()
-              promise.reject("CAMERA_ERROR", "Camera error: $error")
-          }
-      }, handler)
-    } catch (e: Exception) {
-      promise.reject("CAMERA_OPEN_FAILED", e.message, e)
-    }
+    Log.e("camera", "start Camera")
+    val camera = Camera(reactApplicationContext, mediaStreamTrackId)
+    cameras[mediaStreamTrackId] = camera
+    Log.e("camera", "end Camera")
+    promise.resolve(null)
   }
 
   @ReactMethod
   override fun requestCameraPermission(promise: Promise) {
     val context = reactApplicationContext
     val currentActivity = context.currentActivity
-    
+
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-        == PackageManager.PERMISSION_GRANTED) {
+      == PackageManager.PERMISSION_GRANTED
+    ) {
       promise.resolve(true)
       return
     }
@@ -76,7 +51,7 @@ class NativeMediaDeviceModule(reactContext: ReactApplicationContext) :
           grantResults: IntArray
         ): Boolean {
           if (requestCode == CameraPermissionListener.CAMERA_PERMISSION_REQUEST_CODE) {
-            val granted = grantResults.isNotEmpty() && 
+            val granted = grantResults.isNotEmpty() &&
               grantResults[0] == PackageManager.PERMISSION_GRANTED
             promise.resolve(granted)
             return true
@@ -84,7 +59,7 @@ class NativeMediaDeviceModule(reactContext: ReactApplicationContext) :
           return false
         }
       }
-      
+
       currentActivity.requestPermissions(
         arrayOf(Manifest.permission.CAMERA),
         CameraPermissionListener.CAMERA_PERMISSION_REQUEST_CODE,

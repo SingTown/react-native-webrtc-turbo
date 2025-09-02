@@ -27,6 +27,8 @@ target_include_directories(
 target_link_libraries(
     datachannel-module
     jsi
+    jnigraphics
+    log
     reactnative
     react_codegen_WebrtcSpec
     ${LIBDATACHANNEL_PATH}/lib/libdatachannel.so
