@@ -1,4 +1,4 @@
-#import "WebrtcView.h"
+#import "WebrtcFabric.h"
 #import "MediaStreamTrack.h"
 
 #import <react/renderer/components/WebrtcSpec/ComponentDescriptors.h>
