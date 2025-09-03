@@ -21,6 +21,11 @@ export interface RTCSessionDescriptionInit {
   type: RTCSdpType;
 }
 
+interface RTCIceCandidateInit {
+  candidate?: string;
+  sdpMid?: string | null;
+}
+
 export class RTCPeerConnection {
   private pc: string;
   private transceivers: RTCRtpTransceiver[] = [];
@@ -94,7 +99,7 @@ export class RTCPeerConnection {
     return this.transceivers;
   }
 
-  createOffer(): RTCSessionDescriptionInit {
+  createOffer(): Promise<RTCSessionDescriptionInit> {
     for (const transceiver of this.transceivers) {
       NativeDatachannel.addTransceiver(
         this.pc,
@@ -106,10 +111,10 @@ export class RTCPeerConnection {
       );
     }
     const sdp = NativeDatachannel.createOffer(this.pc);
-    return { sdp, type: 'offer' };
+    return Promise.resolve({ sdp, type: 'offer' });
   }
 
-  createAnswer(): RTCSessionDescriptionInit {
+  createAnswer(): Promise<RTCSessionDescriptionInit> {
     for (const transceiver of this.transceivers) {
       NativeDatachannel.addTransceiver(
         this.pc,
@@ -122,26 +127,39 @@ export class RTCPeerConnection {
     }
 
     const sdp = NativeDatachannel.createAnswer(this.pc);
-    return { sdp, type: 'answer' };
+    return Promise.resolve({ sdp, type: 'answer' });
   }
 
   get localDescription(): string {
     return NativeDatachannel.getLocalDescription(this.pc);
   }
 
-  setLocalDescription(description: RTCSessionDescriptionInit) {
+  setLocalDescription(description: RTCSessionDescriptionInit): Promise<void> {
     NativeDatachannel.setLocalDescription(this.pc, description.sdp || '');
+    return Promise.resolve();
   }
 
   get remoteDescription(): string {
     return NativeDatachannel.getRemoteDescription(this.pc);
   }
 
-  setRemoteDescription(sdp: string) {
+  setRemoteDescription(sdp: string): Promise<void> {
     NativeDatachannel.setRemoteDescription(this.pc, sdp);
+    return Promise.resolve();
   }
 
-  setRemoteCandidate(candidate: string, mid: string) {
-    NativeDatachannel.addRemoteCandidate(this.pc, candidate, mid);
+  addIceCandidate(candidate?: RTCIceCandidateInit | null): Promise<void> {
+    let mid = '0';
+    if (candidate?.sdpMid) {
+      mid = candidate.sdpMid;
+    }
+    let str = '';
+    if (candidate?.candidate) {
+      str = candidate.candidate;
+    }
+    if (str) {
+      NativeDatachannel.addRemoteCandidate(this.pc, str, mid);
+    }
+    return Promise.resolve();
   }
 }

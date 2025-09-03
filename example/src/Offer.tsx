@@ -56,7 +56,7 @@ export default function Offer() {
         direction: 'recvonly',
       });
 
-      const offer = peerconnection.createOffer();
+      const offer = await peerconnection.createOffer();
       peerconnection.setLocalDescription(offer);
       const sdp = peerconnection.localDescription;
       setLocalDescription(sdp);
@@ -133,10 +133,13 @@ export default function Offer() {
             <View style={styles.buttonContainer}>
               <Button
                 title="Add Remote Candidate"
-                onPress={() => {
+                onPress={async () => {
                   for (const remoteCandidate of inputCandidates.split('\n')) {
                     if (remoteCandidate.trim() === '') continue;
-                    pc?.setRemoteCandidate(remoteCandidate, '0');
+                    await pc?.addIceCandidate({
+                      candidate: remoteCandidate,
+                      sdpMid: '0',
+                    });
                   }
                 }}
               />

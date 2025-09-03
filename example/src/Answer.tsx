@@ -112,7 +112,7 @@ export default function App() {
                   localStream.getVideoTracks().forEach((track) => {
                     pc.addTransceiver(track, { direction: 'sendonly' });
                   });
-                  const answer = pc.createAnswer();
+                  const answer = await pc.createAnswer();
                   setLocalDescription(answer.sdp || '');
                   pc.setLocalDescription(answer);
                 }}
@@ -133,10 +133,13 @@ export default function App() {
             <View style={styles.buttonContainer}>
               <Button
                 title="Add Remote Candidate"
-                onPress={() => {
+                onPress={async () => {
                   for (const remoteCandidate of inputCandidates.split('\n')) {
                     if (remoteCandidate.trim() === '') continue;
-                    pc?.setRemoteCandidate(remoteCandidate, '0');
+                    await pc?.addIceCandidate({
+                      candidate: remoteCandidate,
+                      sdpMid: '0',
+                    });
                   }
                 }}
               />
