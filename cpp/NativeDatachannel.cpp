@@ -2,10 +2,15 @@
 #include "MediaStreamTrack.h"
 #include "RTCRtpReceiver.h"
 #include "guid.h"
+#include "log.h"
 #include <iostream>
 #include <mutex>
 #include <rtc/rtc.hpp>
 #include <string>
+
+void ffmpeg_callback(void *ptr, int level, const char *fmt, va_list vl) {
+	LOGE(fmt, vl);
+}
 
 std::mutex mutex;
 
@@ -46,7 +51,10 @@ std::string emplaceTrack(std::shared_ptr<rtc::Track> ptr) {
 namespace facebook::react {
 
 NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
-    : NativeDatachannelCxxSpec(std::move(jsInvoker)) {}
+    : NativeDatachannelCxxSpec(std::move(jsInvoker)) {
+	av_log_set_level(AV_LOG_DEBUG);
+	av_log_set_callback(ffmpeg_callback);
+}
 
 std::string NativeDatachannel::createPeerConnection(
     jsi::Runtime &rt, const std::vector<std::string> &servers) {

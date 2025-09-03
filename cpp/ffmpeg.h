@@ -1,5 +1,6 @@
 #pragma once
 
+#include "log.h"
 #include <mutex>
 #include <queue>
 #include <vector>
@@ -20,6 +21,8 @@ class Encoder {
 	std::mutex mutex;
 
 	void destroy() {
+		if (!ctx)
+			return;
 		avcodec_send_frame(ctx, nullptr);
 		AVPacket *pkt = av_packet_alloc();
 		while (avcodec_receive_packet(ctx, pkt) == 0) {
@@ -31,12 +34,13 @@ class Encoder {
 	}
 
   public:
-	Encoder(const std::string &name) {
-		encoder = avcodec_find_encoder_by_name(name.c_str());
+	Encoder(AVCodecID codecId) : encoder(nullptr), ctx(nullptr) {
+		std::lock_guard lock(mutex);
+		encoder = avcodec_find_encoder(codecId);
 		if (encoder) {
-			printf("h264_videotoolbox enabled\n");
+			LOGI("%s enabled\n", encoder->name);
 		} else {
-			printf("not enabled\n");
+			LOGE("not enabled\n");
 		}
 		if (!encoder)
 			throw std::runtime_error("Could not find encoder");
@@ -51,7 +55,7 @@ class Encoder {
 		if (ctx) {
 			if (ctx->width != frame->width || ctx->height != frame->height ||
 			    ctx->pix_fmt != frame->format) {
-				printf("destroy ctx: %p\n", ctx);
+				LOGI("destroy ctx: %p\n", ctx);
 				destroy();
 			}
 		}
@@ -70,7 +74,7 @@ class Encoder {
 			ctx->bit_rate = 1000000; // 1Mbps ~ 130KB/s
 			ctx->gop_size = 60;
 			ctx->max_b_frames = 0;
-			ctx->pix_fmt = AV_PIX_FMT_NV12;
+			ctx->pix_fmt = (AVPixelFormat)frame->format;
 			ctx->color_range = AVCOL_RANGE_MPEG;
 			ctx->color_primaries = AVCOL_PRI_BT709;
 			ctx->color_trc = AVCOL_TRC_BT709;
@@ -115,7 +119,7 @@ class Decoder {
 
   public:
 	Decoder(AVCodecID codecId) {
-
+		std::lock_guard lock(mutex);
 		auto decoder = avcodec_find_decoder(codecId);
 		if (!decoder)
 			throw std::runtime_error("Could not find decoder");
