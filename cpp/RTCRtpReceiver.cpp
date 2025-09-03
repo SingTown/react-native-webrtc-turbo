@@ -42,7 +42,7 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	}
 	rtc::SSRC ssrc = ssrcs[0];
 
-	std::string codecName;
+	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
 	// if (rtpMap.format == "H265") {
 	// 	auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
@@ -58,18 +58,18 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 		auto packetizer =
 		    std::make_shared<rtc::H264RtpPacketizer>(separator, rtpConfig, mtu);
 		track->setMediaHandler(packetizer);
-		codecName = "h264_videotoolbox";
+		avCodecId = AV_CODEC_ID_H264;
 	} else {
 		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
 
-	auto encoder = std::make_shared<Encoder>(codecName);
+	auto encoder = std::make_shared<Encoder>(avCodecId);
 	mediaStreamTrack->onPush(
 	    [mediaStreamTrack, encoder, track](std::shared_ptr<AVFrame> frame) {
-		    while (mediaStreamTrack->size()) {
+		    while (1) {
 			    auto frame = mediaStreamTrack->pop(AV_PIX_FMT_NV12);
 			    if (!frame) {
-				    continue;
+				    return;
 			    }
 			    auto packets = encoder->encode(frame);
 			    for (auto packet : packets) {

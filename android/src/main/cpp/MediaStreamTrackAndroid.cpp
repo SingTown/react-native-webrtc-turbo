@@ -1,13 +1,7 @@
 #include "MediaStreamTrack.h"
 #include <android/bitmap.h>
-#include <android/log.h>
 #include <jni.h>
 #include <string>
-
-#define LOG_TAG "Webrtc"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace facebook::react {
 extern "C" {
@@ -67,6 +61,8 @@ Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
 JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
     JNIEnv *env, jobject, jstring id, jobject image) {
 
+	static jlong baseTimestamp = 0;
+	static bool isFirstFrame = true;
 	const char *idChars = env->GetStringUTFChars(id, nullptr);
 	std::string idStr(idChars);
 	env->ReleaseStringUTFChars(id, idChars);
@@ -81,8 +77,11 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	jmethodID getWidthMethod = env->GetMethodID(imageClass, "getWidth", "()I");
 	jmethodID getHeightMethod =
 	    env->GetMethodID(imageClass, "getHeight", "()I");
+	jmethodID getTimestampMethod =
+	    env->GetMethodID(imageClass, "getTimestamp", "()J");
 	jint width = env->CallIntMethod(image, getWidthMethod);
 	jint height = env->CallIntMethod(image, getHeightMethod);
+	jlong timestamp = env->CallLongMethod(image, getTimestampMethod);
 
 	jmethodID getPlanesMethod = env->GetMethodID(
 	    imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
@@ -118,11 +117,16 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	jint vRowStride = env->CallIntMethod(vPlane, getRowStrideMethod);
 	jint vPixelStride = env->CallIntMethod(vPlane, getPixelStrideMethod);
 
+	if (isFirstFrame) {
+		baseTimestamp = timestamp;
+		isFirstFrame = false;
+	}
+
 	auto frame = createAVFrame();
 	frame->width = (int)width;
 	frame->height = (int)height;
 	frame->format = AV_PIX_FMT_YUV420P;
-	// frame->pts = pts_90k - self.ptsBase;
+	frame->pts = (timestamp - baseTimestamp) * 9 / 100000;
 
 	int ret = av_frame_get_buffer(frame.get(), 32);
 	if (ret < 0) {

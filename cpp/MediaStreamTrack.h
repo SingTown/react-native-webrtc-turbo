@@ -3,13 +3,14 @@
 
 #include "ffmpeg.h"
 #include "guid.h"
+#include "log.h"
 #include <mutex>
 #include <queue>
 
 class MediaStreamTrack {
   private:
 	std::queue<std::shared_ptr<AVFrame>> queue;
-	std::recursive_mutex mutex;
+	std::mutex mutex;
 	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
 	struct SwsContext *sws_ctx;
 
@@ -22,21 +23,29 @@ class MediaStreamTrack {
 	}
 
 	void push(std::shared_ptr<AVFrame> frame) {
-		std::lock_guard<std::recursive_mutex> lock(mutex);
-		if (!frame) {
-			return;
+		std::function<void(std::shared_ptr<AVFrame>)> callbackCopy;
+		{
+			std::lock_guard<std::mutex> lock(mutex);
+			if (!frame) {
+				return;
+			}
+			if (queue.size() > 100) {
+				queue.pop(); // drop
+			}
+			queue.push(frame);
+			callbackCopy = onPushCallback;
+
+			LOGE("pushed frame: pts %lld, queue size: %zu\n", frame->pts,
+			     queue.size());
 		}
-		if (queue.size() > 100) {
-			queue.pop(); // drop
-		}
-		queue.push(frame);
-		if (onPushCallback) {
-			onPushCallback(frame);
+
+		if (callbackCopy) {
+			callbackCopy(frame);
 		}
 	}
 
 	std::shared_ptr<AVFrame> pop(AVPixelFormat format) {
-		std::lock_guard<std::recursive_mutex> lock(mutex);
+		std::lock_guard<std::mutex> lock(mutex);
 		if (queue.empty()) {
 			return nullptr;
 		}
@@ -53,6 +62,7 @@ class MediaStreamTrack {
 		dst->format = format;
 		dst->width = frame->width;
 		dst->height = frame->height;
+		dst->pts = frame->pts;
 		if (av_frame_get_buffer(dst.get(), 32) < 0) {
 			throw std::runtime_error("Could not allocate RGBA image");
 		}
@@ -69,13 +79,8 @@ class MediaStreamTrack {
 		return dst;
 	}
 
-	size_t size() {
-		std::lock_guard<std::recursive_mutex> lock(mutex);
-		return queue.size();
-	}
-
 	void onPush(std::function<void(std::shared_ptr<AVFrame>)> callback) {
-		std::lock_guard<std::recursive_mutex> lock(mutex);
+		std::lock_guard<std::mutex> lock(mutex);
 		onPushCallback = callback;
 	}
 };
