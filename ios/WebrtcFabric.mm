@@ -75,26 +75,42 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
 
 - (void)updateFrame {
   
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
+ ^{
     if (self->_currentVideoStreamTrackId.empty()) {
       return;
     }
 
     auto mediaStream = getMediaStreamTrack(self->_currentVideoStreamTrackId);
-    auto frame = mediaStream->pop(AV_PIX_FMT_RGBA);
+    auto frame = mediaStream->pop(AV_PIX_FMT_RGB24);
     if (!frame) {
       return;
     }
-   
-    CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, frame->data[0], frame->linesize[0]*frame->height, NULL);
+
+    int rgbBufferSize = frame->width * frame->height * 3;
+    uint8_t *rgbBuffer = (uint8_t *)malloc(rgbBufferSize);
+    for (int y = 0; y < frame->height; y++) {
+      uint8_t *src = frame->data[0] + y * frame->linesize[0];
+      uint8_t *dst = rgbBuffer + y * frame->width * 3;
+      memcpy(dst, src, frame->width * 3);
+    }
+
+    CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL,
+                                                                  rgbBuffer,
+                                                                  rgbBufferSize,
+                                                                  [](void *info,
+                                                                     const void *data,
+                                                                     size_t size) {
+      free((void*)data);
+    });
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast;
+    CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaNone;
     CGImageRef cgImage = CGImageCreate(
                                        frame->width,                          // width
                                        frame->height,                         // height
                                        8,                              // bitsPerComponent
-                                       32,                             // bitsPerPixel (RGBA = 8*4)
-                                       frame->linesize[0],                       // bytesPerRow
+                                       24,                             // bitsPerPixel (RGBA= 8*3)
+                                       frame->width * 3,                       // bytesPerRow
                                        colorSpace,                     // colorSpace
                                        bitmapInfo,                     // bitmapInfo
                                        dataProvider,                   // dataProvider
