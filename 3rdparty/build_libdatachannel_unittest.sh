@@ -42,4 +42,4 @@ mkdir -p $OUTPUT_DIR/include
 cp -r $MBEDTLS_DIR/install/lib/*.a $OUTPUT_DIR/lib/
 cp -r $MBEDTLS_DIR/install/include/* $OUTPUT_DIR/include/
 cp -r $LIBDATACHANNEL_DIR/install/lib/*.a $OUTPUT_DIR/lib/
-cp -r $LIBDATACHANNEL_DIR/install/include/include/* $OUTPUT_DIR/include/
+cp -r $LIBDATACHANNEL_DIR/install/include/* $OUTPUT_DIR/include/
