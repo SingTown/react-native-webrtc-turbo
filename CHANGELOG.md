@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 (2025-09-04)
+
+* fix: ios View stride crash ([be6bfd1](https://github.com/SingTown/react-native-webrtc-turbo/commit/be6bfd1))
+* feat: add testcpp ([da90160](https://github.com/SingTown/react-native-webrtc-turbo/commit/da90160))
+
 ## 0.4.0 (2025-09-04)
 
 * feat: android camera use NV12 ([98793ec](https://github.com/SingTown/react-native-webrtc-turbo/commit/98793ec))
