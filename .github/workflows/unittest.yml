@@ -1,0 +1,59 @@
+name: UNITTEST
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  merge_group:
+    types:
+      - checks_requested
+
+jobs:
+  test_cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      - name: Cache 3rdparty output
+        id: cache-3rdparty-unittest
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: 3rdparty/output
+          key: ${{ runner.os }}-3rdparty-unittest-${{ hashFiles('3rdparty/*.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-3rdparty-unittest-
+
+      - name: Download 3rdparty artifacts
+        if: steps.cache-3rdparty-unittest.outputs.cache-hit != 'true'
+        run: cd 3rdparty && ./download.sh
+
+      - name: build 3rdparty
+        if: steps.cache-3rdparty-unittest.outputs.cache-hit != 'true'
+        run: cd 3rdparty && ./build_unittest.sh
+
+      - name: Build C++ tests
+        run: |
+          cd cpp/__tests__
+          mkdir -p build
+          cd build
+          cmake ..
+          make -j$(nproc)
+      
+      - name: Run C++ tests
+        run: cd cpp/__tests__/build && ./testcpp --gtest_output=xml:report.xml
+
+      - name: Show test report in logs
+        run: cat cpp/__tests__/build/report.xml
+
+      - name: Publish Test Results
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'cpp/__tests__/build/report.xml'

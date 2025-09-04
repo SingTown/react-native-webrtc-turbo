@@ -119,8 +119,8 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 		if (av_new_packet(packet.get(), static_cast<int>(binary.size())) < 0) {
 			throw std::runtime_error("Could not allocate AVPacket data");
 		}
-		std::memcpy(packet->data, reinterpret_cast<const void *>(binary.data()),
-		            binary.size());
+		memcpy(packet->data, reinterpret_cast<const void *>(binary.data()),
+		       binary.size());
 		packet->pts = info.timestamp;
 		packet->dts = info.timestamp;
 

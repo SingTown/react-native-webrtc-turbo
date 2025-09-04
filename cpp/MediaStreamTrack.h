@@ -4,6 +4,7 @@
 #include "ffmpeg.h"
 #include "guid.h"
 #include "log.h"
+#include <functional>
 #include <mutex>
 #include <queue>
 

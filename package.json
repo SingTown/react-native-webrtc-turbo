@@ -37,7 +37,7 @@
     "test": "jest",
     "typecheck": "tsc",
     "lint:ts": "eslint \"src/**/*.{js,ts,tsx}\" \"example/src/**/*.{js,ts,tsx}\"",
-    "lint:cpp": "find cpp -name \"*.cpp\" -o -name \"*.h\" -o -name \"*.hpp\" | xargs clang-format --dry-run --Werror",
+    "lint:cpp": "find cpp -path cpp/__tests__/build -prune -o \\( -name \"*.cpp\" -o -name \"*.h\" -o -name \"*.hpp\" \\) -type f -print0 | xargs -0 clang-format -n --Werror -style=file",
     "lint": "yarn lint:ts && yarn lint:cpp",
     "3rdparty:download": "cd 3rdparty && sh download.sh",
     "3rdparty:ios": "cd 3rdparty && sh build_ios.sh",

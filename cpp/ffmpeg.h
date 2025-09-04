@@ -1,8 +1,10 @@
 #pragma once
 
 #include "log.h"
+#include <memory>
 #include <mutex>
 #include <queue>
+#include <stdexcept>
 #include <vector>
 
 extern "C" {
