@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 (2025-09-04)
+
+* feat: android camera use NV12 ([98793ec](https://github.com/SingTown/react-native-webrtc-turbo/commit/98793ec))
+* feat: ffmpeg log ([80df15d](https://github.com/SingTown/react-native-webrtc-turbo/commit/80df15d))
+* fix: add Promise ([035d268](https://github.com/SingTown/react-native-webrtc-turbo/commit/035d268))
+* fix: android encode ([158edfa](https://github.com/SingTown/react-native-webrtc-turbo/commit/158edfa))
+
 ## 0.3.0 (2025-09-02)
 
 * feat: add anwser ([e4e1f80](https://github.com/SingTown/react-native-webrtc-turbo/commit/e4e1f80))
