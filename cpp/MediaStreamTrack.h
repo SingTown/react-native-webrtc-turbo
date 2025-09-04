@@ -34,9 +34,6 @@ class MediaStreamTrack {
 			}
 			queue.push(frame);
 			callbackCopy = onPushCallback;
-
-			LOGE("pushed frame: pts %lld, queue size: %zu\n", frame->pts,
-			     queue.size());
 		}
 
 		if (callbackCopy) {

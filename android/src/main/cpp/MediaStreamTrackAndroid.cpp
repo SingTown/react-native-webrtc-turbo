@@ -125,7 +125,7 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	auto frame = createAVFrame();
 	frame->width = (int)width;
 	frame->height = (int)height;
-	frame->format = AV_PIX_FMT_YUV420P;
+	frame->format = AV_PIX_FMT_NV12;
 	frame->pts = (timestamp - baseTimestamp) * 9 / 100000;
 
 	int ret = av_frame_get_buffer(frame.get(), 32);
@@ -139,17 +139,12 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 		       yBufferPtr + y * yRowStride, width);
 	}
 
-	// Copy U
+	// Copy UV
 	for (int y = 0; y < height / 2; ++y) {
 		for (int x = 0; x < width / 2; ++x) {
-			frame->data[1][y * frame->linesize[1] + x] =
+			frame->data[1][y * frame->linesize[1] + x * 2] =
 			    uBufferPtr[y * uRowStride + x * uPixelStride];
-		}
-	}
-	// Copy V
-	for (int y = 0; y < height / 2; ++y) {
-		for (int x = 0; x < width / 2; ++x) {
-			frame->data[2][y * frame->linesize[2] + x] =
+			frame->data[1][y * frame->linesize[1] + x * 2 + 1] =
 			    vBufferPtr[y * vRowStride + x * vPixelStride];
 		}
 	}
