@@ -8,12 +8,22 @@
 #include <mutex>
 #include <queue>
 
+struct ComparePTS {
+	bool operator()(std::shared_ptr<AVFrame> &a,
+	                std::shared_ptr<AVFrame> &b) const {
+		return a->pts > b->pts;
+	}
+};
+
 class MediaStreamTrack {
   private:
-	std::queue<std::shared_ptr<AVFrame>> queue;
+	std::priority_queue<std::shared_ptr<AVFrame>,
+	                    std::vector<std::shared_ptr<AVFrame>>, ComparePTS>
+	    queue;
 	std::mutex mutex;
 	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
 	struct SwsContext *sws_ctx;
+	int64_t pts;
 
   public:
 	~MediaStreamTrack() {
@@ -30,7 +40,7 @@ class MediaStreamTrack {
 			if (!frame) {
 				return;
 			}
-			if (queue.size() > 100) {
+			if (queue.size() > 10) {
 				queue.pop(); // drop
 			}
 			queue.push(frame);
@@ -42,13 +52,24 @@ class MediaStreamTrack {
 		}
 	}
 
-	std::shared_ptr<AVFrame> pop(AVPixelFormat format) {
+	std::shared_ptr<AVFrame> pop(AVPixelFormat format, size_t bufferSize = 0) {
 		std::lock_guard<std::mutex> lock(mutex);
-		if (queue.empty()) {
+		std::shared_ptr<AVFrame> frame;
+		while (queue.size() > bufferSize) {
+			auto f = queue.top();
+			queue.pop();
+			if (f->pts < pts) {
+				LOGI("drop pts: %lld, last pts: %lld", f->pts, pts);
+				continue;
+			} else {
+				frame = f;
+				pts = f->pts;
+				break;
+			}
+		}
+		if (!frame) {
 			return nullptr;
 		}
-		auto frame = queue.front();
-		queue.pop();
 
 		if (frame->format == format) {
 			return frame;
