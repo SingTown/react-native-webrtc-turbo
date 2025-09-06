@@ -40,9 +40,9 @@ class Encoder {
 		std::lock_guard lock(mutex);
 		encoder = avcodec_find_encoder(codecId);
 		if (encoder) {
-			LOGI("%s enabled\n", encoder->name);
+			LOGI("encoder %s enabled\n", encoder->name);
 		} else {
-			LOGE("not enabled\n");
+			LOGE("encoder init failed\n");
 		}
 		if (!encoder)
 			throw std::runtime_error("Could not find encoder");
@@ -81,7 +81,11 @@ class Encoder {
 			ctx->color_primaries = AVCOL_PRI_BT709;
 			ctx->color_trc = AVCOL_TRC_BT709;
 			ctx->colorspace = AVCOL_SPC_BT709;
-			ctx->profile = FF_PROFILE_H264_MAIN;
+			if (encoder->id == AV_CODEC_ID_H264) {
+				ctx->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+			} else if (encoder->id == AV_CODEC_ID_H265) {
+				ctx->profile = FF_PROFILE_HEVC_MAIN;
+			}
 			ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
 			if (avcodec_open2(ctx, encoder, NULL) < 0)
 				throw std::runtime_error("Could not open codec");

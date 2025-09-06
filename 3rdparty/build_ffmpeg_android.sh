@@ -46,7 +46,8 @@ for i in "${!ARCHS[@]}"; do
             --enable-decoder=hevc \
             --enable-parser=h264 \
             --enable-parser=hevc \
-            --enable-encoder=h264_mediacodec
+            --enable-encoder=h264_mediacodec \
+            --enable-encoder=hevc_mediacodec
 
         make -j install
     )

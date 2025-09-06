@@ -8,7 +8,8 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	const size_t mtu = 1200;
 
 	auto rtpMap = negotiateRtpMap(peerConnection->remoteDescription().value(),
-	                              track->description());
+	                              peerConnection->localDescription().value(),
+	                              track->mid());
 
 	auto ssrcs = track->description().getSSRCs();
 	if (ssrcs.size() != 1) {
@@ -18,15 +19,15 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
-	// if (rtpMap.format == "H265") {
-	// 	auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
-	// 	    ssrc, cname, 96, rtc::H265RtpPacketizer::ClockRate);
-	// 	auto packetizer = std::make_shared<rtc::H265RtpPacketizer>(
-	// 	    separator, rtpConfig, mtu);
-	// 	track->setMediaHandler(packetizer);
-	// 	codecName = "hevc_videotoolbox";
-	// } else
-	if (rtpMap.format == "H264") {
+	if (rtpMap.format == "H265") {
+		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
+		    ssrc, track->mid(), rtpMap.payloadType,
+		    rtc::H265RtpPacketizer::ClockRate);
+		auto packetizer =
+		    std::make_shared<rtc::H265RtpPacketizer>(separator, rtpConfig, mtu);
+		track->setMediaHandler(packetizer);
+		avCodecId = AV_CODEC_ID_H265;
+	} else if (rtpMap.format == "H264") {
 		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
 		    ssrc, track->mid(), rtpMap.payloadType,
 		    rtc::H264RtpPacketizer::ClockRate);
@@ -64,7 +65,8 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
                     std::shared_ptr<rtc::Track> track) {
 
 	auto rtpMap = negotiateRtpMap(peerConnection->remoteDescription().value(),
-	                              track->description());
+	                              peerConnection->localDescription().value(),
+	                              track->mid());
 
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;

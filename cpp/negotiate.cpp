@@ -36,7 +36,7 @@ int extractFmtpIntValue(const std::string &fmtp, const std::string &key,
 	return std::stoi(value, nullptr, base);
 }
 
-int getFmtpsProfileLevelId(const std::vector<std::string> &fmtps) {
+int getH264ProfileLevelId(const std::vector<std::string> &fmtps) {
 	for (const auto &fmtp : fmtps) {
 		try {
 			return extractFmtpIntValue(fmtp, "profile-level-id", 16);
@@ -47,7 +47,7 @@ int getFmtpsProfileLevelId(const std::vector<std::string> &fmtps) {
 	return 0x42e01f;
 }
 
-int getFmtpsPacketizationMode(const std::vector<std::string> &fmtps) {
+int getH264PacketizationMode(const std::vector<std::string> &fmtps) {
 	for (const auto &fmtp : fmtps) {
 		try {
 			return extractFmtpIntValue(fmtp, "packetization-mode", 10);
@@ -58,7 +58,7 @@ int getFmtpsPacketizationMode(const std::vector<std::string> &fmtps) {
 	return 0;
 }
 
-int getFmtpsLevelAsymmetryAllowed(const std::vector<std::string> &fmtps) {
+int getH264LevelAsymmetryAllowed(const std::vector<std::string> &fmtps) {
 	for (const auto &fmtp : fmtps) {
 		try {
 			return extractFmtpIntValue(fmtp, "level-asymmetry-allowed", 10);
@@ -69,11 +69,51 @@ int getFmtpsLevelAsymmetryAllowed(const std::vector<std::string> &fmtps) {
 	return 0;
 }
 
-int getProfileId(int profileLevelId) { return (profileLevelId >> 16) & 0xFF; }
-int getConstrainedId(int profileLevelId) {
+int getH264ProfileId(const std::vector<std::string> &fmtps) {
+	int profileLevelId = getH264ProfileLevelId(fmtps);
+	return (profileLevelId >> 16) & 0xFF;
+}
+int getH264ConstrainedId(const std::vector<std::string> &fmtps) {
+	int profileLevelId = getH264ProfileLevelId(fmtps);
 	return (profileLevelId & 0xFF00) >> 8;
 }
-int getLevelId(int profileLevelId) { return profileLevelId & 0xFF; }
+int getH264LevelId(const std::vector<std::string> &fmtps) {
+	int profileLevelId = getH264ProfileLevelId(fmtps);
+	return profileLevelId & 0xFF;
+}
+
+int getH265ProfileId(const std::vector<std::string> &fmtps) {
+	for (const auto &fmtp : fmtps) {
+		try {
+			return extractFmtpIntValue(fmtp, "profile-id", 10);
+		} catch (const std::exception &) {
+			continue;
+		}
+	}
+	return 1;
+}
+
+int getH265LevelId(const std::vector<std::string> &fmtps) {
+	for (const auto &fmtp : fmtps) {
+		try {
+			return extractFmtpIntValue(fmtp, "level-id", 10);
+		} catch (const std::exception &) {
+			continue;
+		}
+	}
+	return 1;
+}
+
+int getH265TierFlag(const std::vector<std::string> &fmtps) {
+	for (const auto &fmtp : fmtps) {
+		try {
+			return extractFmtpIntValue(fmtp, "tier-flag", 10);
+		} catch (const std::exception &) {
+			continue;
+		}
+	}
+	return 0;
+}
 
 bool isRtpMapMatchExceptPayloadType(const rtc::Description::Media::RtpMap *a,
                                     const rtc::Description::Media::RtpMap *b) {
@@ -82,31 +122,37 @@ bool isRtpMapMatchExceptPayloadType(const rtc::Description::Media::RtpMap *a,
 		return false;
 	}
 	if (a->format == "H264") {
-		int aProfileLevelId = getFmtpsProfileLevelId(a->fmtps);
-		int bProfileLevelId = getFmtpsProfileLevelId(b->fmtps);
-
-		int aPacketizationMode = getFmtpsPacketizationMode(a->fmtps);
-		int bPacketizationMode = getFmtpsPacketizationMode(b->fmtps);
-
-		int aLevelAsymmetryAllowed = getFmtpsLevelAsymmetryAllowed(a->fmtps);
-		int bLevelAsymmetryAllowed = getFmtpsLevelAsymmetryAllowed(b->fmtps);
-
-		if (aLevelAsymmetryAllowed != bLevelAsymmetryAllowed)
+		int aProfileId = getH264ProfileId(a->fmtps);
+		int bProfileId = getH264ProfileId(b->fmtps);
+		if (aProfileId != bProfileId)
 			return false;
+
+		int aPacketizationMode = getH264PacketizationMode(a->fmtps);
+		int bPacketizationMode = getH264PacketizationMode(b->fmtps);
 		if (aPacketizationMode != bPacketizationMode)
 			return false;
+
+		int aLevelAsymmetryAllowed = getH264LevelAsymmetryAllowed(a->fmtps);
+		int bLevelAsymmetryAllowed = getH264LevelAsymmetryAllowed(b->fmtps);
+		if (aLevelAsymmetryAllowed != bLevelAsymmetryAllowed)
+			return false;
+
 		if (aLevelAsymmetryAllowed == 0) {
-			if (aProfileLevelId != bProfileLevelId)
-				return false;
-		} else {
-			if (getProfileId(aProfileLevelId) != getProfileId(bProfileLevelId))
-				return false;
-			if (getConstrainedId(aProfileLevelId) !=
-			    getConstrainedId(bProfileLevelId))
+			int aLevelId = getH264LevelId(a->fmtps);
+			int bLevelId = getH264LevelId(b->fmtps);
+			if (aLevelId != bLevelId)
 				return false;
 		}
-	} else {
-		return false;
+	} else if (a->format == "H265") {
+		int aProfileId = getH265ProfileId(a->fmtps);
+		int bProfileId = getH265ProfileId(b->fmtps);
+		if (aProfileId != bProfileId)
+			return false;
+
+		int aTierFlag = getH265TierFlag(a->fmtps);
+		int bTierFlag = getH265TierFlag(b->fmtps);
+		if (aTierFlag != bTierFlag)
+			return false;
 	}
 
 	return true;
@@ -120,6 +166,10 @@ std::string getFmtpsString(const std::vector<std::string> &fmtps) {
 }
 
 void addSupportedVideo(rtc::Description::Video &media) {
+	media.addH265Codec(104, "level-id=93;"
+	                        "profile-id=1;"
+	                        "tier-flag=0;"
+	                        "tx-mode=SRST");
 	media.addH264Codec(96, "profile-level-id=42e01f;"
 	                       "packetization-mode=1;"
 	                       "level-asymmetry-allowed=1");
@@ -149,57 +199,73 @@ rtc::Description::Media getSupportedMedia(const std::string &mid,
 }
 
 std::optional<rtc::Description::Media>
-negotiateAnswerMedia(const rtc::Description &remoteDesc, int index,
+negotiateAnswerMedia(const rtc::Description &offer, int index,
                      rtc::Description::Direction direction,
                      const std::string &kind) {
-	auto remoteMedia = getMedia(remoteDesc, index);
-	if (!remoteMedia)
+	auto offerMedia = getMedia(offer, index);
+	if (!offerMedia)
 		return std::nullopt;
 
-	auto supportedMedia =
-	    getSupportedMedia(remoteMedia->mid(), direction, kind);
+	auto supportedMedia = getSupportedMedia(offerMedia->mid(), direction, kind);
 
-	// replace payload type
 	uint32_t ssrc = random() % UINT32_MAX;
-	rtc::Description::Video result(remoteMedia->mid(), direction);
+	rtc::Description::Video result(offerMedia->mid(), direction);
 
-	for (auto supportedPt : supportedMedia.payloadTypes()) {
-		auto supportRtpMap = supportedMedia.rtpMap(supportedPt);
-		if (!supportRtpMap)
+	for (auto offerPt : offerMedia->payloadTypes()) {
+		auto offerRtpMap = offerMedia->rtpMap(offerPt);
+		if (!offerRtpMap) {
 			continue;
-		for (auto remotePt : remoteMedia->payloadTypes()) {
-			auto remotRtpMap = remoteMedia->rtpMap(remotePt);
-			if (!remotRtpMap) {
+		}
+
+		for (auto supportedPt : supportedMedia.payloadTypes()) {
+			auto supportRtpMap = supportedMedia.rtpMap(supportedPt);
+			if (!supportRtpMap)
 				continue;
-			}
-			std::string format = remotRtpMap->format;
+
+			std::string format = offerRtpMap->format;
 			if (format != supportRtpMap->format) {
 				continue;
 			}
-			if (isRtpMapMatchExceptPayloadType(remotRtpMap, supportRtpMap)) {
-				result.addVideoCodec(remotRtpMap->payloadType, format,
-				                     getFmtpsString(remotRtpMap->fmtps));
+			if (isRtpMapMatchExceptPayloadType(offerRtpMap, supportRtpMap)) {
+				result.addVideoCodec(offerRtpMap->payloadType, format,
+				                     getFmtpsString(offerRtpMap->fmtps));
 			}
 		}
 	}
-	result.addSSRC(ssrc, remoteMedia->mid());
+	result.addSSRC(ssrc, offerMedia->mid());
 	return result;
 }
 
 rtc::Description::Media::RtpMap
 negotiateRtpMap(const rtc::Description &remoteDesc,
-                const rtc::Description::Media &trackMedia) {
-	for (int i = 0; i < remoteDesc.mediaCount(); i++) {
-		auto remoteMedia = getMedia(remoteDesc, i);
-		if (!remoteMedia)
+                const rtc::Description &localDesc, const std::string &mid) {
+
+	auto offer = remoteDesc.type() == rtc::Description::Type::Offer ? remoteDesc
+	                                                                : localDesc;
+	auto answer = remoteDesc.type() == rtc::Description::Type::Offer
+	                  ? localDesc
+	                  : remoteDesc;
+
+	for (int i = 0; i < offer.mediaCount(); i++) {
+		auto offerMedia = getMedia(offer, i);
+		if (!offerMedia)
 			continue;
-		if (remoteMedia->mid() != trackMedia.mid())
+		if (offerMedia->mid() != mid)
 			continue;
-		for (auto remotePt : remoteMedia->payloadTypes()) {
-			for (auto trackPt : trackMedia.payloadTypes()) {
-				if (remotePt != trackPt)
+
+		for (auto offerPt : offerMedia->payloadTypes()) {
+
+			for (int j = 0; j < answer.mediaCount(); j++) {
+				auto answerMedia = getMedia(answer, j);
+				if (!answerMedia)
 					continue;
-				return *trackMedia.rtpMap(trackPt);
+
+				if (answerMedia->mid() != mid)
+					continue;
+
+				if (answerMedia->hasPayloadType(offerPt)) {
+					return *offerMedia->rtpMap(offerPt);
+				}
 			}
 		}
 	}

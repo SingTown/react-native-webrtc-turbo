@@ -38,7 +38,8 @@ for i in "${!SDKS[@]}"; do
             --enable-decoder=hevc \
             --enable-parser=h264 \
             --enable-parser=hevc \
-            --enable-encoder=h264_videotoolbox
+            --enable-encoder=h264_videotoolbox \
+            --enable-encoder=hevc_videotoolbox
 
         make -j install
         libtool -static -o libffmpeg.a \
