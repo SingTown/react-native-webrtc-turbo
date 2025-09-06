@@ -114,7 +114,10 @@ export default function Offer() {
               <Button
                 title="Set Remote SDP"
                 onPress={() => {
-                  pc?.setRemoteDescription(inputRemoteSDP.trim() + '\n');
+                  pc?.setRemoteDescription({
+                    sdp: inputRemoteSDP.trim() + '\n',
+                    type: 'answer',
+                  });
                 }}
               />
             </View>

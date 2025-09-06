@@ -134,8 +134,8 @@ export class RTCPeerConnection {
     return NativeDatachannel.getRemoteDescription(this.pc);
   }
 
-  setRemoteDescription(sdp: string): Promise<void> {
-    NativeDatachannel.setRemoteDescription(this.pc, sdp);
+  setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
+    NativeDatachannel.setRemoteDescription(this.pc, description.sdp || '');
     return Promise.resolve();
   }
 

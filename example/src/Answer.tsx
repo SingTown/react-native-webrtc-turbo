@@ -103,7 +103,10 @@ export default function App() {
                 title="Set Remote SDP"
                 onPress={async () => {
                   if (!pc) return;
-                  pc.setRemoteDescription(inputRemoteSDP.trim() + '\n');
+                  pc.setRemoteDescription({
+                    sdp: inputRemoteSDP.trim() + '\n',
+                    type: 'offer',
+                  });
                   const localStream = await MediaDevices.getUserMedia({
                     video: true,
                     audio: false,
