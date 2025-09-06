@@ -52,7 +52,7 @@ namespace facebook::react {
 
 NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
     : NativeDatachannelCxxSpec(std::move(jsInvoker)) {
-	av_log_set_level(AV_LOG_DEBUG);
+	av_log_set_level(AV_LOG_ERROR);
 	av_log_set_callback(ffmpeg_callback);
 }
 
