@@ -16,6 +16,7 @@ type RootStackParamList = {
   Offer: undefined;
   Answer: undefined;
   Camera: undefined;
+  SelfTest: undefined;
 };
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
@@ -89,6 +90,12 @@ export default function Home({
               <Button
                 title="Camera"
                 onPress={() => navigation.navigate('Camera')}
+              />
+            </View>
+            <View style={styles.buttonContainer}>
+              <Button
+                title="Self Test"
+                onPress={() => navigation.navigate('SelfTest')}
               />
             </View>
           </View>

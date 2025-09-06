@@ -4,6 +4,7 @@ import Home from './Home';
 import Offer from './Offer';
 import Answer from './Answer';
 import Camera from './Camera';
+import SelfTest from './SelfTest';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,6 +16,7 @@ export default function App() {
         <Stack.Screen name="Offer" component={Offer} />
         <Stack.Screen name="Answer" component={Answer} />
         <Stack.Screen name="Camera" component={Camera} />
+        <Stack.Screen name="SelfTest" component={SelfTest} />
       </Stack.Navigator>
     </NavigationContainer>
   );
