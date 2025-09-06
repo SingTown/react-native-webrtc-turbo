@@ -100,33 +100,24 @@ export class RTCPeerConnection {
   }
 
   createOffer(): Promise<RTCSessionDescriptionInit> {
-    for (const transceiver of this.transceivers) {
-      NativeDatachannel.addTransceiver(
-        this.pc,
-        transceiver.kind,
-        transceiver.direction,
-        transceiver.sender.track?.id || '',
-        transceiver.receiver.track?.id || '',
-        'offer'
-      );
-    }
-    const sdp = NativeDatachannel.createOffer(this.pc);
+    const nativeTransceivers = this.transceivers.map((t) => ({
+      kind: t.kind,
+      direction: t.direction,
+      sendms: t.sender.track?.id || '',
+      recvms: t.receiver.track?.id || '',
+    }));
+    const sdp = NativeDatachannel.createOffer(this.pc, nativeTransceivers);
     return Promise.resolve({ sdp, type: 'offer' });
   }
 
   createAnswer(): Promise<RTCSessionDescriptionInit> {
-    for (const transceiver of this.transceivers) {
-      NativeDatachannel.addTransceiver(
-        this.pc,
-        transceiver.kind,
-        transceiver.direction,
-        transceiver.sender.track?.id || '',
-        transceiver.receiver.track?.id || '',
-        'answer'
-      );
-    }
-
-    const sdp = NativeDatachannel.createAnswer(this.pc);
+    const nativeTransceivers = this.transceivers.map((t) => ({
+      kind: t.kind,
+      direction: t.direction,
+      sendms: t.sender.track?.id || '',
+      recvms: t.receiver.track?.id || '',
+    }));
+    const sdp = NativeDatachannel.createAnswer(this.pc, nativeTransceivers);
     return Promise.resolve({ sdp, type: 'answer' });
   }
 

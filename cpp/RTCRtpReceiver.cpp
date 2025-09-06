@@ -1,40 +1,14 @@
 #include "RTCRtpReceiver.h"
-
-rtc::Description::Media::RtpMap
-negotiateCodec(const rtc::Description &remoteDesc,
-               const rtc::Description::Media trackMedia) {
-	for (int i = 0; i < remoteDesc.mediaCount(); i++) {
-		auto remoteMediaVar = remoteDesc.media(i);
-		if (!std::holds_alternative<const rtc::Description::Media *>(
-		        remoteMediaVar))
-			continue;
-		auto remoteMedia =
-		    std::get<const rtc::Description::Media *>(remoteMediaVar);
-
-		if (remoteMedia->type() != trackMedia.type())
-			continue;
-
-		for (auto remotePt : remoteMedia->payloadTypes()) {
-			for (auto trackPt : trackMedia.payloadTypes()) {
-				if (remotePt != trackPt)
-					continue;
-
-				return *trackMedia.rtpMap(remotePt);
-			}
-		}
-	}
-
-	throw std::runtime_error("No matching codec found for negotiation");
-}
+#include "negotiate.h"
+#include <set>
 
 void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
                   std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
                   std::shared_ptr<rtc::Track> track) {
-	const std::string cname = "singtown";
 	const size_t mtu = 1200;
 
-	auto rtpMap = negotiateCodec(peerConnection->remoteDescription().value(),
-	                             track->description());
+	auto rtpMap = negotiateRtpMap(peerConnection->remoteDescription().value(),
+	                              track->description());
 
 	auto ssrcs = track->description().getSSRCs();
 	if (ssrcs.size() != 1) {
@@ -54,7 +28,8 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	// } else
 	if (rtpMap.format == "H264") {
 		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
-		    ssrc, cname, 96, rtc::H264RtpPacketizer::ClockRate);
+		    ssrc, track->mid(), rtpMap.payloadType,
+		    rtc::H264RtpPacketizer::ClockRate);
 		auto packetizer =
 		    std::make_shared<rtc::H264RtpPacketizer>(separator, rtpConfig, mtu);
 		track->setMediaHandler(packetizer);
@@ -88,8 +63,8 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
                     std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
                     std::shared_ptr<rtc::Track> track) {
 
-	auto rtpMap = negotiateCodec(peerConnection->remoteDescription().value(),
-	                             track->description());
+	auto rtpMap = negotiateRtpMap(peerConnection->remoteDescription().value(),
+	                              track->description());
 
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
@@ -129,4 +104,46 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 			mediaStreamTrack->push(frame);
 		}
 	});
+}
+
+std::shared_ptr<rtc::Track>
+addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
+               const std::string &kind, rtc::Description::Direction direction,
+               const std::string &sendms, const std::string &recvms) {
+
+	std::shared_ptr<MediaStreamTrack> sendStream;
+	std::shared_ptr<MediaStreamTrack> recvStream;
+	if (direction == rtc::Description::Direction::SendRecv) {
+		sendStream = getMediaStreamTrack(sendms);
+		recvStream = getMediaStreamTrack(recvms);
+	} else if (direction == rtc::Description::Direction::SendOnly) {
+		sendStream = getMediaStreamTrack(sendms);
+	} else if (direction == rtc::Description::Direction::RecvOnly) {
+		recvStream = getMediaStreamTrack(recvms);
+	}
+
+	std::shared_ptr<rtc::Track> track;
+	auto remoteDesc = peerConnection->remoteDescription();
+	if (!remoteDesc) {
+		auto media = getSupportedMedia(std::to_string(index), direction, kind);
+		track = peerConnection->addTrack(std::move(media));
+	} else {
+		auto media = negotiateAnswerMedia(*remoteDesc, index, direction, kind);
+		if (!media) {
+			throw std::runtime_error("No matching media found for index: " +
+			                         std::to_string(index));
+		}
+		track = peerConnection->addTrack(std::move(*media));
+	}
+
+	track->onOpen([peerConnection, track, sendStream, recvStream]() {
+		if (sendStream) {
+			SenderOnOpen(peerConnection, sendStream, track);
+		}
+
+		if (recvStream) {
+			ReceiverOnOpen(peerConnection, recvStream, track);
+		}
+	});
+	return track;
 }

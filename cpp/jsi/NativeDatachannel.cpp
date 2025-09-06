@@ -97,65 +97,29 @@ void NativeDatachannel::deleteMediaStreamTrack(jsi::Runtime &rt,
 	eraseMediaStreamTrack(id);
 }
 
-std::string NativeDatachannel::addTransceiver(
-    jsi::Runtime &rt, const std::string &pc, const std::string &kind,
-    rtc::Description::Direction direction, const std::string &sendms,
-    const std::string &recvms, const std::string &type) {
-
-	uint32_t ssrc = random() % UINT32_MAX;
-	static int mid = 0;
-	// mid++;
-	std::string midStr = std::to_string(mid);
-
-	std::shared_ptr<MediaStreamTrack> sendStream;
-	std::shared_ptr<MediaStreamTrack> recvStream;
-	if (direction == rtc::Description::Direction::SendRecv) {
-		sendStream = getMediaStreamTrack(sendms);
-		recvStream = getMediaStreamTrack(recvms);
-	} else if (direction == rtc::Description::Direction::SendOnly) {
-		sendStream = getMediaStreamTrack(sendms);
-	} else if (direction == rtc::Description::Direction::RecvOnly) {
-		recvStream = getMediaStreamTrack(recvms);
-	}
+std::string NativeDatachannel::createOffer(
+    jsi::Runtime &rt, const std::string &pc,
+    const std::vector<NativeTransceiver> &receivers) {
 
 	auto peerConnection = getPeerConnection(pc);
-	std::shared_ptr<rtc::Track> track;
-
-	if (kind == "video") {
-		rtc::Description::Video media(midStr, direction);
-		media.addH264Codec(96);
-		media.addSSRC(ssrc, midStr);
-		track = peerConnection->addTrack(std::move(media));
-	} else if (kind == "audio") {
-		rtc::Description::Audio media(midStr, direction);
-		media.addOpusCodec(111);
-		media.addSSRC(ssrc, midStr);
-		track = peerConnection->addTrack(std::move(media));
-	} else {
-		throw std::runtime_error("Unsupported transceiver kind: " + kind);
+	for (int i = 0; i < receivers.size(); i++) {
+		auto &receiver = receivers[i];
+		addTransceiver(peerConnection, i, receiver.kind, receiver.direction,
+		               receiver.sendms, receiver.recvms);
 	}
-
-	track->onOpen([peerConnection, track, sendStream, recvStream]() {
-		if (sendStream) {
-			SenderOnOpen(peerConnection, sendStream, track);
-		}
-
-		if (recvStream) {
-			ReceiverOnOpen(peerConnection, recvStream, track);
-		}
-	});
-	return emplaceTrack(track);
-}
-
-std::string NativeDatachannel::createOffer(jsi::Runtime &rt,
-                                           const std::string &pc) {
-	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createOffer();
 }
 
-std::string NativeDatachannel::createAnswer(jsi::Runtime &rt,
-                                            const std::string &pc) {
+std::string NativeDatachannel::createAnswer(
+    jsi::Runtime &rt, const std::string &pc,
+    const std::vector<NativeTransceiver> &receivers) {
+
 	auto peerConnection = getPeerConnection(pc);
+	for (int i = 0; i < receivers.size(); i++) {
+		auto &receiver = receivers[i];
+		addTransceiver(peerConnection, i, receiver.kind, receiver.direction,
+		               receiver.sendms, receiver.recvms);
+	}
 	return peerConnection->createAnswer();
 }
 

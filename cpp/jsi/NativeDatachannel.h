@@ -19,15 +19,10 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	std::string createMediaStreamTrack(jsi::Runtime &rt);
 	void deleteMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
 
-	std::string addTransceiver(jsi::Runtime &rt, const std::string &pc,
-	                           const std::string &kind,
-	                           rtc::Description::Direction direction,
-	                           const std::string &sendms,
-	                           const std::string &recvms,
-	                           const std::string &type);
-
-	std::string createOffer(jsi::Runtime &rt, const std::string &pc);
-	std::string createAnswer(jsi::Runtime &rt, const std::string &pc);
+	std::string createOffer(jsi::Runtime &rt, const std::string &pc,
+	                        const std::vector<NativeTransceiver> &receivers);
+	std::string createAnswer(jsi::Runtime &rt, const std::string &pc,
+	                         const std::vector<NativeTransceiver> &receivers);
 
 	std::string getLocalDescription(jsi::Runtime &rt, const std::string &pc);
 	void setLocalDescription(jsi::Runtime &rt, const std::string &pc,

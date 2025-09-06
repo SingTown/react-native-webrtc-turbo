@@ -11,6 +11,14 @@ template <>
 struct Bridging<LocalCandidate>
     : NativeDatachannelLocalCandidateBridging<LocalCandidate> {};
 
+using NativeTransceiver =
+    NativeDatachannelNativeTransceiver<std::string, rtc::Description::Direction,
+                                       std::string, std::string>;
+
+template <>
+struct Bridging<NativeTransceiver>
+    : NativeDatachannelNativeTransceiverBridging<NativeTransceiver> {};
+
 template <> struct Bridging<rtc::Description::Direction> {
 	static rtc::Description::Direction fromJs(jsi::Runtime &rt,
 	                                          const jsi::String &value) {

@@ -8,6 +8,13 @@ export type LocalCandidate = {
   mid: string;
 };
 
+export type NativeTransceiver = {
+  kind: string;
+  direction: string;
+  sendms: string;
+  recvms: string;
+};
+
 export interface Spec extends TurboModule {
   createPeerConnection(servers: string[]): string;
   closePeerConnection(pc: string): void;
@@ -16,17 +23,8 @@ export interface Spec extends TurboModule {
   createMediaStreamTrack(): string;
   deleteMediaStreamTrack(id: string): void;
 
-  addTransceiver(
-    pc: string,
-    kind: string,
-    direction: string,
-    sendms: string,
-    recvms: string,
-    type: 'offer' | 'answer'
-  ): string;
-
-  createOffer(pc: string): string;
-  createAnswer(pc: string): string;
+  createOffer(pc: string, transceivers: NativeTransceiver[]): string;
+  createAnswer(pc: string, transceivers: NativeTransceiver[]): string;
 
   getLocalDescription(pc: string): string;
   setLocalDescription(pc: string, sdp: string): void;
