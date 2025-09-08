@@ -4,6 +4,7 @@ import android.graphics.*
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
@@ -15,7 +16,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
 
 @ReactModule(name = WebrtcFabricManager.NAME)
-class WebrtcFabricManager : SimpleViewManager<WebrtcFabric>(),
+class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<WebrtcFabric>(),
   WebrtcFabricManagerInterface<WebrtcFabric> {
   private val mDelegate: ViewManagerDelegate<WebrtcFabric>
 
