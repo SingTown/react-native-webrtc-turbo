@@ -1829,7 +1829,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - Yoga
   - SocketRocket (0.7.1)
-  - Webrtc (0.2.0):
+  - Webrtc (0.6.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2166,7 +2166,7 @@ SPEC CHECKSUMS:
   RNCClipboard: ea6045252d5c0753cf17f62290f647dc0096f6ac
   RNScreens: f0678748c5310b49a3f920f1485f5ec477afd345
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
-  Webrtc: 73ae433911c15bf4f4493ea8cb2f3faae90b3c88
+  Webrtc: 1dc9d923d4abe0992891a469f410fd62dab82a6a
   Yoga: c758bfb934100bb4bf9cbaccb52557cee35e8bdf
 
 PODFILE CHECKSUM: 7fadc635be4a42c9e1279fbe8cde5651eb370b3a

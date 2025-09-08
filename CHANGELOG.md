@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 (2025-09-08)
+
+* chore: add Podfile.lock before release ([aa7e01d](https://github.com/SingTown/react-native-webrtc-turbo/commit/aa7e01d))
+* chore: ffmpeg log level ([a804d0e](https://github.com/SingTown/react-native-webrtc-turbo/commit/a804d0e))
+* fix: autolink ([0f04365](https://github.com/SingTown/react-native-webrtc-turbo/commit/0f04365))
+* fix: cicd unittest ([b32e176](https://github.com/SingTown/react-native-webrtc-turbo/commit/b32e176))
+* fix: setRemoteDescription args ([44f0ca9](https://github.com/SingTown/react-native-webrtc-turbo/commit/44f0ca9))
+* feat: add negotiate feature ([5e32fb6](https://github.com/SingTown/react-native-webrtc-turbo/commit/5e32fb6))
+* feat: add SelfTest example ([07d37ed](https://github.com/SingTown/react-native-webrtc-turbo/commit/07d37ed))
+* feat: enable H265 ([31ce1b3](https://github.com/SingTown/react-native-webrtc-turbo/commit/31ce1b3))
+* feat: priority_queue ([04945f1](https://github.com/SingTown/react-native-webrtc-turbo/commit/04945f1))
+
 ## 0.5.0 (2025-09-04)
 
 * fix: ios View stride crash ([be6bfd1](https://github.com/SingTown/react-native-webrtc-turbo/commit/be6bfd1))
