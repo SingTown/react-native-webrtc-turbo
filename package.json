@@ -123,6 +123,14 @@
     "github": {
       "release": false
     },
+    "hooks": {
+      "after:bump": [
+        "cd example/ios && bundle exec pod install"
+      ],
+      "before:git:add": [
+        "git add example/ios/Podfile.lock"
+      ]
+    },
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": {
