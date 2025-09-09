@@ -60,7 +60,8 @@ class MediaStreamTrack {
 			auto f = queue.top();
 			queue.pop();
 			if (f->pts < pts) {
-				LOGI("drop pts: %lld, last pts: %lld", f->pts, pts);
+				LOGI("drop pts: %" PRId64 ", last pts: %" PRId64 "\n", f->pts,
+				     pts);
 				continue;
 			} else {
 				frame = f;

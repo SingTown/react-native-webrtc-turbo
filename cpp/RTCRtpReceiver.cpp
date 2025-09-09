@@ -41,7 +41,8 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 
 	auto encoder = std::make_shared<Encoder>(avCodecId);
 	mediaStreamTrack->onPush(
-	    [mediaStreamTrack, encoder, track](std::shared_ptr<AVFrame> frame) {
+	    [mediaStreamTrack, encoder,
+	     track]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
 		    while (1) {
 			    auto frame = mediaStreamTrack->pop(AV_PIX_FMT_NV12);
 			    if (!frame) {
@@ -62,9 +63,10 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	    });
 }
 
-void SenderOnClose(std::shared_ptr<rtc::PeerConnection> peerConnection,
-                   std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
-                   std::shared_ptr<rtc::Track> track) {
+void SenderOnClose(
+    [[maybe_unused]] std::shared_ptr<rtc::PeerConnection> peerConnection,
+    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
+    [[maybe_unused]] std::shared_ptr<rtc::Track> track) {
 
 	mediaStreamTrack->onPush(nullptr);
 }
@@ -117,9 +119,10 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	});
 }
 
-void ReceiverOnClose(std::shared_ptr<rtc::PeerConnection> peerConnection,
-                     std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
-                     std::shared_ptr<rtc::Track> track) {}
+void ReceiverOnClose(
+    [[maybe_unused]] std::shared_ptr<rtc::PeerConnection> peerConnection,
+    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
+    [[maybe_unused]] std::shared_ptr<rtc::Track> track) {}
 
 std::shared_ptr<rtc::Track>
 addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,

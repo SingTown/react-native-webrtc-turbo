@@ -109,7 +109,6 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	uint8_t *yBufferPtr =
 	    static_cast<uint8_t *>(env->GetDirectBufferAddress(yByteBuffer));
 	jint yRowStride = env->CallIntMethod(yPlane, getRowStrideMethod);
-	jint yPixelStride = env->CallIntMethod(yPlane, getPixelStrideMethod);
 
 	jobject uByteBuffer = env->CallObjectMethod(uPlane, getBufferMethod);
 	uint8_t *uBufferPtr =

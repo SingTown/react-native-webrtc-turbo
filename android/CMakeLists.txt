@@ -22,6 +22,14 @@ add_library(
     ${CPP_SOURCES}
 )
 
+target_compile_options(
+    datachannel-module
+    PRIVATE
+    -Wall
+    -Wextra
+    -Werror
+)
+
 # Specifies a path to native header files.
 target_include_directories(
     datachannel-module

@@ -8,7 +8,8 @@
 #include <rtc/rtc.hpp>
 #include <string>
 
-void ffmpeg_callback(void *ptr, int level, const char *fmt, va_list vl) {
+void ffmpeg_callback([[maybe_unused]] void *ptr, [[maybe_unused]] int level,
+                     const char *fmt, va_list vl) {
 	LOGE(fmt, vl);
 }
 
@@ -57,7 +58,8 @@ NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
 }
 
 std::string NativeDatachannel::createPeerConnection(
-    jsi::Runtime &rt, const std::vector<std::string> &servers) {
+    [[maybe_unused]] jsi::Runtime &rt,
+    const std::vector<std::string> &servers) {
 	rtc::Configuration c;
 	for (const auto &server : servers) {
 		c.iceServers.emplace_back(server);
@@ -76,22 +78,23 @@ std::string NativeDatachannel::createPeerConnection(
 	return pc;
 }
 
-void NativeDatachannel::closePeerConnection(jsi::Runtime &rt,
+void NativeDatachannel::closePeerConnection([[maybe_unused]] jsi::Runtime &rt,
                                             const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	peerConnection->close();
 	peerConnectionMap.erase(pc);
 }
 
-std::string NativeDatachannel::createMediaStreamTrack(jsi::Runtime &rt) {
+std::string
+NativeDatachannel::createMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt) {
 	auto mediaStreamTrack = std::make_shared<MediaStreamTrack>();
 	return emplaceMediaStreamTrack(mediaStreamTrack);
 }
 
 std::string NativeDatachannel::createRTCRtpTransceiver(
-    jsi::Runtime &rt, const std::string &pc, int index, const std::string &kind,
-    rtc::Description::Direction direction, const std::string &sendms,
-    const std::string &recvms) {
+    [[maybe_unused]] jsi::Runtime &rt, const std::string &pc, int index,
+    const std::string &kind, rtc::Description::Direction direction,
+    const std::string &sendms, const std::string &recvms) {
 	auto peerConnection = getPeerConnection(pc);
 	auto track =
 	    addTransceiver(peerConnection, index, kind, direction, sendms, recvms);
@@ -99,7 +102,7 @@ std::string NativeDatachannel::createRTCRtpTransceiver(
 	return emplaceTrack(track);
 }
 
-void NativeDatachannel::stopRTCTransceiver(jsi::Runtime &rt,
+void NativeDatachannel::stopRTCTransceiver([[maybe_unused]] jsi::Runtime &rt,
                                            const std::string &tr) {
 	auto track = getTrack(tr);
 	if (track) {
@@ -108,27 +111,28 @@ void NativeDatachannel::stopRTCTransceiver(jsi::Runtime &rt,
 	}
 }
 
-void NativeDatachannel::stopMediaStreamTrack(jsi::Runtime &rt,
+void NativeDatachannel::stopMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt,
                                              const std::string &id) {
 	eraseMediaStreamTrack(id);
 }
 
-std::string NativeDatachannel::createOffer(jsi::Runtime &rt,
+std::string NativeDatachannel::createOffer([[maybe_unused]] jsi::Runtime &rt,
                                            const std::string &pc) {
 
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createOffer();
 }
 
-std::string NativeDatachannel::createAnswer(jsi::Runtime &rt,
+std::string NativeDatachannel::createAnswer([[maybe_unused]] jsi::Runtime &rt,
                                             const std::string &pc) {
 
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createAnswer();
 }
 
-std::string NativeDatachannel::getLocalDescription(jsi::Runtime &rt,
-                                                   const std::string &pc) {
+std::string
+NativeDatachannel::getLocalDescription([[maybe_unused]] jsi::Runtime &rt,
+                                       const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	auto sdp = peerConnection->localDescription();
 	if (!sdp.has_value()) {
@@ -137,7 +141,7 @@ std::string NativeDatachannel::getLocalDescription(jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannel::setLocalDescription(jsi::Runtime &rt,
+void NativeDatachannel::setLocalDescription([[maybe_unused]] jsi::Runtime &rt,
                                             const std::string &pc,
                                             const std::string &sdp) {
 
@@ -146,8 +150,9 @@ void NativeDatachannel::setLocalDescription(jsi::Runtime &rt,
 	peerConnection->setLocalDescription(description.type());
 }
 
-std::string NativeDatachannel::getRemoteDescription(jsi::Runtime &rt,
-                                                    const std::string &pc) {
+std::string
+NativeDatachannel::getRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
+                                        const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	auto sdp = peerConnection->remoteDescription();
 	if (!sdp.has_value()) {
@@ -156,7 +161,7 @@ std::string NativeDatachannel::getRemoteDescription(jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannel::setRemoteDescription(jsi::Runtime &rt,
+void NativeDatachannel::setRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
                                              const std::string &pc,
                                              const std::string &sdp) {
 
@@ -165,7 +170,7 @@ void NativeDatachannel::setRemoteDescription(jsi::Runtime &rt,
 	peerConnection->setRemoteDescription(description);
 }
 
-void NativeDatachannel::addRemoteCandidate(jsi::Runtime &rt,
+void NativeDatachannel::addRemoteCandidate([[maybe_unused]] jsi::Runtime &rt,
                                            const std::string &pc,
                                            const std::string &candidate,
                                            const std::string &mid) {
