@@ -28,12 +28,15 @@ export default function Offer() {
   const [inputCandidates, setInputCandidates] = useState('');
 
   useEffect(() => {
+    let peerconnection: RTCPeerConnection | null = null;
+    let localStream: MediaStream | null = null;
+
     (async () => {
       console.log('Setting up local description listener');
       const url = await AsyncStorage.getItem('iceUrl');
       const user = await AsyncStorage.getItem('iceUsername');
       const pwd = await AsyncStorage.getItem('icePassword');
-      const peerconnection = new RTCPeerConnection({
+      peerconnection = new RTCPeerConnection({
         iceServers: [
           {
             urls: url || '',
@@ -49,7 +52,10 @@ export default function Offer() {
       };
       peerconnection.ontrack = (event) => {
         const s = event.streams[0];
-        s && setStream(s);
+        if (s) {
+          localStream = s;
+          setStream(localStream);
+        }
       };
 
       peerconnection.addTransceiver('video', {
@@ -61,6 +67,16 @@ export default function Offer() {
       const sdp = peerconnection.localDescription;
       setLocalDescription(sdp);
     })();
+
+    return () => {
+      peerconnection?.close();
+      setPc(null);
+
+      localStream?.getVideoTracks().forEach((track) => {
+        track.stop();
+      });
+      setStream(null);
+    };
   }, []);
 
   return (

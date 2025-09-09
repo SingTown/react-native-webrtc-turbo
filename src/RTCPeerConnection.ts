@@ -49,7 +49,7 @@ export class RTCPeerConnection {
     );
   }
 
-  convertIceServersToUrls(iceServers: RTCIceServer[]): string[] {
+  private convertIceServersToUrls(iceServers: RTCIceServer[]): string[] {
     let servers: string[] = [];
     for (const iceServer of iceServers) {
       let urls: string[] = [];
@@ -99,25 +99,35 @@ export class RTCPeerConnection {
     return this.transceivers;
   }
 
+  private createRTCRtpTransceivers() {
+    for (let i = 0; i < this.transceivers.length; i++) {
+      const t = this.transceivers[i];
+      if (!t) continue;
+      const sendms = t?.sender.track?.id || '';
+      const recvms = t?.receiver.track?.id || '';
+      if (!t.id) {
+        const id = NativeDatachannel.createRTCRtpTransceiver(
+          this.pc,
+          i,
+          t.kind,
+          t.direction,
+          sendms,
+          recvms
+        );
+        t.id = id;
+      }
+    }
+  }
+
   createOffer(): Promise<RTCSessionDescriptionInit> {
-    const nativeTransceivers = this.transceivers.map((t) => ({
-      kind: t.kind,
-      direction: t.direction,
-      sendms: t.sender.track?.id || '',
-      recvms: t.receiver.track?.id || '',
-    }));
-    const sdp = NativeDatachannel.createOffer(this.pc, nativeTransceivers);
+    this.createRTCRtpTransceivers();
+    const sdp = NativeDatachannel.createOffer(this.pc);
     return Promise.resolve({ sdp, type: 'offer' });
   }
 
   createAnswer(): Promise<RTCSessionDescriptionInit> {
-    const nativeTransceivers = this.transceivers.map((t) => ({
-      kind: t.kind,
-      direction: t.direction,
-      sendms: t.sender.track?.id || '',
-      recvms: t.receiver.track?.id || '',
-    }));
-    const sdp = NativeDatachannel.createAnswer(this.pc, nativeTransceivers);
+    this.createRTCRtpTransceivers();
+    const sdp = NativeDatachannel.createAnswer(this.pc);
     return Promise.resolve({ sdp, type: 'answer' });
   }
 

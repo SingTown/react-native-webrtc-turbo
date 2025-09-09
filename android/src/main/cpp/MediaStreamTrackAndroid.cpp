@@ -17,6 +17,9 @@ Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
 	}
 
 	auto mediaStreamTrack = getMediaStreamTrack(idStr);
+	if (!mediaStreamTrack) {
+		return nullptr;
+	}
 	auto frame = mediaStreamTrack->pop(AV_PIX_FMT_RGBA);
 	if (!frame) {
 		return nullptr;
@@ -70,6 +73,9 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 		return;
 	}
 	auto mediaStreamTrack = getMediaStreamTrack(idStr);
+	if (!mediaStreamTrack) {
+		return;
+	}
 
 	// LOGE("Java_com_webrtc_Camera_pushVideoStreamTrack: %s\n", idStr.c_str());
 

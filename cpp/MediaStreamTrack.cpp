@@ -7,7 +7,7 @@ std::shared_ptr<MediaStreamTrack> getMediaStreamTrack(const std::string &id) {
 	if (auto it = mediaStreamTrackMap.find(id); it != mediaStreamTrackMap.end())
 		return it->second;
 	else
-		throw std::invalid_argument("Stream ID does not exist");
+		return nullptr;
 }
 
 std::string emplaceMediaStreamTrack(std::shared_ptr<MediaStreamTrack> ptr) {
@@ -17,5 +17,9 @@ std::string emplaceMediaStreamTrack(std::shared_ptr<MediaStreamTrack> ptr) {
 }
 
 void eraseMediaStreamTrack(const std::string &id) {
+	auto mediaStreamTrack = getMediaStreamTrack(id);
+	if (mediaStreamTrack) {
+		mediaStreamTrack->onPush(nullptr);
+	}
 	mediaStreamTrackMap.erase(id);
 }

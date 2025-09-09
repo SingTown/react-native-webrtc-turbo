@@ -70,8 +70,11 @@ class NativeMediaDeviceModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  override fun deleteCamera(ms: String) {
-    return
+  override fun deleteCamera(mediaStreamTrackId: String) {
+    if (cameras.containsKey(mediaStreamTrackId)) {
+      cameras[mediaStreamTrackId]?.dispose()
+      cameras.remove(mediaStreamTrackId)
+    }
   }
 
   companion object {

@@ -131,8 +131,4 @@ class Camera(
       captureSession?.setRepeatingRequest(captureRequest!!, null, backgroundHandler)
     }
   }
-
-  fun stop() {
-    captureSession?.stopRepeating()
-  }
 }

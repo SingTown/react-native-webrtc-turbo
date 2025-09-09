@@ -18,13 +18,22 @@ export type NativeTransceiver = {
 export interface Spec extends TurboModule {
   createPeerConnection(servers: string[]): string;
   closePeerConnection(pc: string): void;
-  deletePeerConnection(pc: string): void;
 
   createMediaStreamTrack(): string;
-  deleteMediaStreamTrack(id: string): void;
+  stopMediaStreamTrack(id: string): void;
 
-  createOffer(pc: string, transceivers: NativeTransceiver[]): string;
-  createAnswer(pc: string, transceivers: NativeTransceiver[]): string;
+  createRTCRtpTransceiver(
+    pc: string,
+    index: number,
+    kind: string,
+    direction: string,
+    sendms: string,
+    recvms: string
+  ): string;
+  stopRTCTransceiver(id: string): void;
+
+  createOffer(pc: string): string;
+  createAnswer(pc: string): string;
 
   getLocalDescription(pc: string): string;
   setLocalDescription(pc: string, sdp: string): void;

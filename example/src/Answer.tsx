@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   // WebrtcView,
   RTCPeerConnection,
-  // MediaStream,
+  MediaStream,
   MediaDevices,
 } from 'react-native-webrtc-turbo';
 
@@ -22,18 +22,20 @@ import Tabs from './Tabs';
 export default function App() {
   const [activeTab, setActiveTab] = useState('RemoteSDP');
   const [pc, setPc] = useState<RTCPeerConnection | null>(null);
-  // const [stream, setStream] = useState<MediaStream | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [localDescription, setLocalDescription] = useState('');
   const [localCandidates, setLocalCandidates] = useState('');
   const [inputRemoteSDP, setInputRemoteSDP] = useState('');
   const [inputCandidates, setInputCandidates] = useState('');
 
   useEffect(() => {
+    let peerconnection: RTCPeerConnection | null = null;
+    let localStream: MediaStream | null = null;
     (async () => {
       const url = await AsyncStorage.getItem('iceUrl');
       const user = await AsyncStorage.getItem('iceUsername');
       const pwd = await AsyncStorage.getItem('icePassword');
-      const peerconnection = new RTCPeerConnection({
+      peerconnection = new RTCPeerConnection({
         iceServers: [
           {
             urls: url || '',
@@ -48,7 +50,23 @@ export default function App() {
       peerconnection.onicecandidate = (candidate) => {
         setLocalCandidates((prev) => prev + candidate.trim() + '\n');
       };
+
+      localStream = await MediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+      setStream(localStream);
     })();
+
+    return () => {
+      localStream?.getVideoTracks().forEach((track) => {
+        track.stop();
+      });
+      setStream(null);
+
+      peerconnection?.close();
+      setPc(null);
+    };
   }, []);
 
   return (
@@ -107,12 +125,8 @@ export default function App() {
                     sdp: inputRemoteSDP.trim() + '\n',
                     type: 'offer',
                   });
-                  const localStream = await MediaDevices.getUserMedia({
-                    video: true,
-                    audio: false,
-                  });
                   // setStream(localStream);
-                  localStream.getVideoTracks().forEach((track) => {
+                  stream?.getVideoTracks().forEach((track) => {
                     pc.addTransceiver(track, { direction: 'sendonly' });
                   });
                   const answer = await pc.createAnswer();

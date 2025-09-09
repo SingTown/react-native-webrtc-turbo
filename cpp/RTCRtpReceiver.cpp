@@ -52,12 +52,21 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 				    // for (int i = 0; i < 20; i++) {
 				    //     printf(" %02x", packet->data[i]);
 				    // }
-
+				    if (track->isClosed()) {
+					    return;
+				    }
 				    track->sendFrame((const rtc::byte *)packet->data,
 				                     packet->size, packet->pts);
 			    }
 		    }
 	    });
+}
+
+void SenderOnClose(std::shared_ptr<rtc::PeerConnection> peerConnection,
+                   std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
+                   std::shared_ptr<rtc::Track> track) {
+
+	mediaStreamTrack->onPush(nullptr);
 }
 
 void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
@@ -108,21 +117,17 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	});
 }
 
+void ReceiverOnClose(std::shared_ptr<rtc::PeerConnection> peerConnection,
+                     std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
+                     std::shared_ptr<rtc::Track> track) {}
+
 std::shared_ptr<rtc::Track>
 addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
                const std::string &kind, rtc::Description::Direction direction,
                const std::string &sendms, const std::string &recvms) {
 
-	std::shared_ptr<MediaStreamTrack> sendStream;
-	std::shared_ptr<MediaStreamTrack> recvStream;
-	if (direction == rtc::Description::Direction::SendRecv) {
-		sendStream = getMediaStreamTrack(sendms);
-		recvStream = getMediaStreamTrack(recvms);
-	} else if (direction == rtc::Description::Direction::SendOnly) {
-		sendStream = getMediaStreamTrack(sendms);
-	} else if (direction == rtc::Description::Direction::RecvOnly) {
-		recvStream = getMediaStreamTrack(recvms);
-	}
+	auto sendStream = getMediaStreamTrack(sendms);
+	auto recvStream = getMediaStreamTrack(recvms);
 
 	std::shared_ptr<rtc::Track> track;
 	auto remoteDesc = peerConnection->remoteDescription();
@@ -137,6 +142,16 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 		}
 		track = peerConnection->addTrack(std::move(*media));
 	}
+
+	track->onClosed([peerConnection, track, sendStream, recvStream]() {
+		if (sendStream) {
+			SenderOnClose(peerConnection, sendStream, track);
+		}
+
+		if (recvStream) {
+			ReceiverOnClose(peerConnection, recvStream, track);
+		}
+	});
 
 	track->onOpen([peerConnection, track, sendStream, recvStream]() {
 		if (sendStream) {

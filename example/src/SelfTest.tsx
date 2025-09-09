@@ -27,11 +27,15 @@ export default function SelfTest() {
   const [remoteCandidates, setRemoteCandidates] = useState('');
 
   useEffect(() => {
+    let peerconnection1: RTCPeerConnection | null = null;
+    let peerconnection2: RTCPeerConnection | null = null;
+    let localStream: MediaStream | null = null;
+
     (async () => {
       const url = await AsyncStorage.getItem('iceUrl');
       const user = await AsyncStorage.getItem('iceUsername');
       const pwd = await AsyncStorage.getItem('icePassword');
-      const peerconnection1 = new RTCPeerConnection({
+      peerconnection1 = new RTCPeerConnection({
         iceServers: [
           {
             urls: url || '',
@@ -40,7 +44,7 @@ export default function SelfTest() {
           },
         ],
       });
-      const peerconnection2 = new RTCPeerConnection({
+      peerconnection2 = new RTCPeerConnection({
         iceServers: [
           {
             urls: url || '',
@@ -52,7 +56,7 @@ export default function SelfTest() {
 
       setLocalCandidates('');
       peerconnection1.onicecandidate = (candidate) => {
-        peerconnection2.addIceCandidate({
+        peerconnection2!.addIceCandidate({
           candidate: candidate,
           sdpMid: '0',
         });
@@ -83,19 +87,30 @@ export default function SelfTest() {
       peerconnection2.setRemoteDescription(offer);
       setLocalDescription(offer.sdp || '');
 
-      const localStream = await MediaDevices.getUserMedia({
+      localStream = await MediaDevices.getUserMedia({
         video: true,
         audio: false,
       });
 
       localStream.getVideoTracks().forEach((track) => {
-        peerconnection2.addTransceiver(track, { direction: 'sendonly' });
+        peerconnection2!.addTransceiver(track, { direction: 'sendonly' });
       });
 
       const answer = await peerconnection2.createAnswer();
       peerconnection1.setRemoteDescription(answer);
       setRemoteDescription(answer.sdp || '');
     })();
+
+    return () => {
+      peerconnection1?.close();
+      peerconnection2?.close();
+      peerconnection1 = null;
+      peerconnection2 = null;
+      localStream?.getVideoTracks().forEach((track) => {
+        track.stop();
+      });
+      setStream(null);
+    };
   }, []);
 
   return (

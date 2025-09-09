@@ -14,15 +14,19 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	std::string createPeerConnection(jsi::Runtime &rt,
 	                                 const std::vector<std::string> &servers);
 	void closePeerConnection(jsi::Runtime &rt, const std::string &pc);
-	void deletePeerConnection(jsi::Runtime &rt, const std::string &pc);
 
 	std::string createMediaStreamTrack(jsi::Runtime &rt);
-	void deleteMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
+	void stopMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
 
-	std::string createOffer(jsi::Runtime &rt, const std::string &pc,
-	                        const std::vector<NativeTransceiver> &receivers);
-	std::string createAnswer(jsi::Runtime &rt, const std::string &pc,
-	                         const std::vector<NativeTransceiver> &receivers);
+	std::string createRTCRtpTransceiver(jsi::Runtime &rt, const std::string &pc,
+	                                    int index, const std::string &kind,
+	                                    rtc::Description::Direction direction,
+	                                    const std::string &sendms,
+	                                    const std::string &recvms);
+	void stopRTCTransceiver(jsi::Runtime &rt, const std::string &tr);
+
+	std::string createOffer(jsi::Runtime &rt, const std::string &pc);
+	std::string createAnswer(jsi::Runtime &rt, const std::string &pc);
 
 	std::string getLocalDescription(jsi::Runtime &rt, const std::string &pc);
 	void setLocalDescription(jsi::Runtime &rt, const std::string &pc,

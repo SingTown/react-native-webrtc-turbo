@@ -27,6 +27,7 @@ class MediaStreamTrack {
 
   public:
 	~MediaStreamTrack() {
+		onPushCallback = nullptr;
 		if (sws_ctx) {
 			sws_freeContext(sws_ctx);
 			sws_ctx = nullptr;

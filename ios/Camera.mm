@@ -129,11 +129,11 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
   int srcUVStride = (int)CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
 
   // Copy Y
-  for (int i = 0; i < height; ++i) {
+  for (size_t i = 0; i < height; ++i) {
       memcpy(frame->data[0] + i * frame->linesize[0], srcY + i * srcYStride, width);
   }
   // Copy UV
-  for (int i = 0; i < height / 2; ++i) {
+  for (size_t i = 0; i < height / 2; ++i) {
       memcpy(frame->data[1] + i * frame->linesize[1], srcUV + i * srcUVStride, width);
   }
 
@@ -142,7 +142,9 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
   std::string cppStr = [self.mediaStreamTrackId UTF8String];
   auto mediaStreamTrack = getMediaStreamTrack(cppStr);
-  mediaStreamTrack->push(frame);
+  if (mediaStreamTrack) {
+      mediaStreamTrack->push(frame);
+  }
 }
 
 @end

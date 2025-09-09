@@ -80,10 +80,6 @@ void NativeDatachannel::closePeerConnection(jsi::Runtime &rt,
                                             const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	peerConnection->close();
-}
-
-void NativeDatachannel::deletePeerConnection(jsi::Runtime &rt,
-                                             const std::string &pc) {
 	peerConnectionMap.erase(pc);
 }
 
@@ -92,34 +88,42 @@ std::string NativeDatachannel::createMediaStreamTrack(jsi::Runtime &rt) {
 	return emplaceMediaStreamTrack(mediaStreamTrack);
 }
 
-void NativeDatachannel::deleteMediaStreamTrack(jsi::Runtime &rt,
-                                               const std::string &id) {
+std::string NativeDatachannel::createRTCRtpTransceiver(
+    jsi::Runtime &rt, const std::string &pc, int index, const std::string &kind,
+    rtc::Description::Direction direction, const std::string &sendms,
+    const std::string &recvms) {
+	auto peerConnection = getPeerConnection(pc);
+	auto track =
+	    addTransceiver(peerConnection, index, kind, direction, sendms, recvms);
+
+	return emplaceTrack(track);
+}
+
+void NativeDatachannel::stopRTCTransceiver(jsi::Runtime &rt,
+                                           const std::string &tr) {
+	auto track = getTrack(tr);
+	if (track) {
+		track->close();
+		trackMap.erase(tr);
+	}
+}
+
+void NativeDatachannel::stopMediaStreamTrack(jsi::Runtime &rt,
+                                             const std::string &id) {
 	eraseMediaStreamTrack(id);
 }
 
-std::string NativeDatachannel::createOffer(
-    jsi::Runtime &rt, const std::string &pc,
-    const std::vector<NativeTransceiver> &receivers) {
+std::string NativeDatachannel::createOffer(jsi::Runtime &rt,
+                                           const std::string &pc) {
 
 	auto peerConnection = getPeerConnection(pc);
-	for (int i = 0; i < receivers.size(); i++) {
-		auto &receiver = receivers[i];
-		addTransceiver(peerConnection, i, receiver.kind, receiver.direction,
-		               receiver.sendms, receiver.recvms);
-	}
 	return peerConnection->createOffer();
 }
 
-std::string NativeDatachannel::createAnswer(
-    jsi::Runtime &rt, const std::string &pc,
-    const std::vector<NativeTransceiver> &receivers) {
+std::string NativeDatachannel::createAnswer(jsi::Runtime &rt,
+                                            const std::string &pc) {
 
 	auto peerConnection = getPeerConnection(pc);
-	for (int i = 0; i < receivers.size(); i++) {
-		auto &receiver = receivers[i];
-		addTransceiver(peerConnection, i, receiver.kind, receiver.direction,
-		               receiver.sendms, receiver.recvms);
-	}
 	return peerConnection->createAnswer();
 }
 

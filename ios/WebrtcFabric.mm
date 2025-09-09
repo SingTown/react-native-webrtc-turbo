@@ -82,6 +82,9 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
     }
 
     auto mediaStream = getMediaStreamTrack(self->_currentVideoStreamTrackId);
+    if (!mediaStream) {
+      return;
+    }
     auto frame = mediaStream->pop(AV_PIX_FMT_RGB24);
     if (!frame) {
       return;

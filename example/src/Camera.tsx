@@ -11,13 +11,21 @@ export default function Camera() {
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
+    let localStream: MediaStream | null = null;
     (async () => {
-      const mediaStream = await MediaDevices.getUserMedia({
+      localStream = await MediaDevices.getUserMedia({
         video: true,
         audio: false,
       });
-      setStream(mediaStream);
+      setStream(localStream);
     })();
+
+    return () => {
+      localStream?.getVideoTracks().forEach((track) => {
+        track.stop();
+      });
+      setStream(null);
+    };
   }, []);
 
   return (

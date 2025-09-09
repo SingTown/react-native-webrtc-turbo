@@ -1,4 +1,5 @@
 import NativeDatachannel from './NativeDatachannel';
+import NativeMediaDevice from './NativeMediaDevice';
 
 export class MediaStreamTrack {
   enabled: boolean = true;
@@ -8,5 +9,12 @@ export class MediaStreamTrack {
   constructor(kind: 'audio' | 'video') {
     this.kind = kind;
     this.id = NativeDatachannel.createMediaStreamTrack();
+  }
+
+  stop() {
+    NativeDatachannel.stopMediaStreamTrack(this.id);
+    if (this.kind === 'video') {
+      NativeMediaDevice.deleteCamera(this.id);
+    }
   }
 }
