@@ -12,6 +12,12 @@ else
     echo "libdatachannel already exists, skipping clone."
 fi
 
+if [ ! -d "repo/opus" ]; then
+    git clone https://github.com/xiph/opus repo/opus --recursive --depth 1 -b v1.5.2
+else
+    echo "opus already exists, skipping clone."
+fi
+
 if [ ! -d "repo/FFmpeg" ]; then
     git clone https://github.com/FFmpeg/FFmpeg.git repo/ffmpeg --recursive --depth 1 -b n7.1.1
 else

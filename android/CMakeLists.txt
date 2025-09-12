@@ -52,4 +52,5 @@ target_link_libraries(
     ${FFMPEG_PATH}/lib/libavcodec.so
     ${FFMPEG_PATH}/lib/libavutil.so
     ${FFMPEG_PATH}/lib/libswscale.so
+    ${FFMPEG_PATH}/lib/libswresample.so
 )

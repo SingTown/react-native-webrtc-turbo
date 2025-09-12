@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+TOP_DIR="$(cd "$(dirname "$0")" && pwd)"
 ARCHS=("armv7" "aarch64" "x86" "x86_64")
 CPUS=("armv7-a" "armv8-a" "i686" "x86-64")
 ABIS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
@@ -12,12 +13,23 @@ for i in "${!ARCHS[@]}"; do
     ARCH="${ARCHS[$i]}"
     CPU="${CPUS[$i]}"
     TOOLCHAIN_ARCH="${TOOLCHAIN_ARCHS[$i]}"
-    FFMPEG_DIR="build/ffmpeg/android/$ABI"
-    OUTPUT_DIR="output/android/ffmpeg/$ABI"
+    OPUS_DIR="$TOP_DIR/build/opus/android/$ABI"
+    FFMPEG_DIR="$TOP_DIR/build/ffmpeg/android/$ABI"
+    OUTPUT_DIR="$TOP_DIR/output/android/ffmpeg/$ABI"
+
+    cmake -B $OPUS_DIR -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/${NDK_VERSION}/build/cmake/android.toolchain.cmake \
+        -DANDROID_ABI=$ABI \
+        -DANDROID_PLATFORM=android-24 \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=$OPUS_DIR/install \
+        -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        repo/opus
+    cmake --build $OPUS_DIR --config Release --target install
 
     (
         mkdir -p $FFMPEG_DIR
         cd $FFMPEG_DIR
+        PKG_CONFIG_PATH="$OPUS_DIR/install/lib/pkgconfig:${PKG_CONFIG_PATH:-}" \
         ../../../../repo/ffmpeg/configure \
             --host-os=darwin-x86_64 --target-os=android \
             --enable-cross-compile --arch=$ARCH --cpu=$CPU \
@@ -26,7 +38,10 @@ for i in "${!ARCHS[@]}"; do
             --cc=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/${TOOLCHAIN_ARCH}24-clang \
             --cxx=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/${TOOLCHAIN_ARCH}24-clang++ \
             --strip=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip \
-            --prefix=install \
+            --pkg-config-flags="--static" \
+            --extra-cflags="-I$OPUS_DIR/install/include" \
+            --extra-ldflags="-L$OPUS_DIR/install/lib -lopus" \
+            --prefix=$FFMPEG_DIR/install \
             --disable-everything \
             --enable-shared --disable-static \
             --disable-asm \
@@ -34,12 +49,13 @@ for i in "${!ARCHS[@]}"; do
             --disable-avformat \
             --disable-avdevice \
             --disable-avfilter \
-            --disable-swresample \
+            --enable-swresample \
             --enable-avcodec \
             --enable-swscale \
             --enable-avutil \
             --disable-audiotoolbox \
             --disable-videotoolbox \
+            --enable-libopus \
             --enable-mediacodec \
             --enable-jni \
             --enable-decoder=h264 \
@@ -47,7 +63,10 @@ for i in "${!ARCHS[@]}"; do
             --enable-parser=h264 \
             --enable-parser=hevc \
             --enable-encoder=h264_mediacodec \
-            --enable-encoder=hevc_mediacodec
+            --enable-encoder=hevc_mediacodec \
+            --enable-decoder=libopus \
+            --enable-encoder=libopus \
+            --enable-parser=opus
 
         make -j install
     )
