@@ -62,6 +62,10 @@ export default function Offer() {
         direction: 'recvonly',
       });
 
+      peerconnection.addTransceiver('audio', {
+        direction: 'recvonly',
+      });
+
       const offer = await peerconnection.createOffer();
       peerconnection.setLocalDescription(offer);
       const sdp = peerconnection.localDescription;
@@ -72,7 +76,7 @@ export default function Offer() {
       peerconnection?.close();
       setPc(null);
 
-      localStream?.getVideoTracks().forEach((track) => {
+      localStream?.getTracks().forEach((track) => {
         track.stop();
       });
       setStream(null);

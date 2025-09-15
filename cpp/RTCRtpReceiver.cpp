@@ -1,4 +1,5 @@
 #include "RTCRtpReceiver.h"
+#include "ffmpeg.h"
 #include "negotiate.h"
 #include <set>
 
@@ -35,14 +36,21 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 		    std::make_shared<rtc::H264RtpPacketizer>(separator, rtpConfig, mtu);
 		track->setMediaHandler(packetizer);
 		avCodecId = AV_CODEC_ID_H264;
+	} else if (rtpMap.format == "opus") {
+		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
+		    ssrc, track->mid(), rtpMap.payloadType,
+		    rtc::OpusRtpPacketizer::DefaultClockRate);
+		auto packetizer = std::make_shared<rtc::OpusRtpPacketizer>(rtpConfig);
+		track->setMediaHandler(packetizer);
+		avCodecId = AV_CODEC_ID_OPUS;
 	} else {
 		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
 
 	auto encoder = std::make_shared<Encoder>(avCodecId);
 	mediaStreamTrack->onPush(
-	    [mediaStreamTrack, encoder,
-	     track]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
+	    [mediaStreamTrack, encoder, track,
+	     rtpMap]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
 		    while (1) {
 			    auto frame = mediaStreamTrack->pop();
 			    if (!frame) {
@@ -91,6 +99,10 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 		    std::make_shared<rtc::H264RtpDepacketizer>(separator);
 		track->setMediaHandler(depacketizer);
 		avCodecId = AV_CODEC_ID_H264;
+	} else if (rtpMap.format == "opus") {
+		auto depacketizer = std::make_shared<rtc::OpusRtpDepacketizer>();
+		track->setMediaHandler(depacketizer);
+		avCodecId = AV_CODEC_ID_OPUS;
 	} else {
 		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
@@ -99,10 +111,7 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 
 	track->onFrame([decoder, mediaStreamTrack](rtc::binary binary,
 	                                           rtc::FrameInfo info) {
-		std::shared_ptr<AVPacket> packet(
-		    av_packet_alloc(), [](AVPacket *f) { av_packet_free(&f); });
-		if (!packet)
-			throw std::runtime_error("Could not allocate AVPacket");
+		auto packet = createAVPacket();
 
 		if (av_new_packet(packet.get(), static_cast<int>(binary.size())) < 0) {
 			throw std::runtime_error("Could not allocate AVPacket data");

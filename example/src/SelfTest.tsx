@@ -81,6 +81,9 @@ export default function SelfTest() {
       peerconnection1.addTransceiver('video', {
         direction: 'recvonly',
       });
+      peerconnection1.addTransceiver('audio', {
+        direction: 'recvonly',
+      });
 
       const offer = await peerconnection1.createOffer();
       peerconnection1.setLocalDescription(offer);
@@ -89,10 +92,10 @@ export default function SelfTest() {
 
       localStream = await MediaDevices.getUserMedia({
         video: true,
-        audio: false,
+        audio: true,
       });
 
-      localStream.getVideoTracks().forEach((track) => {
+      localStream.getTracks().forEach((track) => {
         peerconnection2!.addTransceiver(track, { direction: 'sendonly' });
       });
 
@@ -106,7 +109,7 @@ export default function SelfTest() {
       peerconnection2?.close();
       peerconnection1 = null;
       peerconnection2 = null;
-      localStream?.getVideoTracks().forEach((track) => {
+      localStream?.getTracks().forEach((track) => {
         track.stop();
       });
       setStream(null);

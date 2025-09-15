@@ -133,7 +133,7 @@ class AudioStreamTrack : public MediaStreamTrack {
 	}
 
 	std::shared_ptr<AVFrame> pop() override {
-		return popAudio(AV_SAMPLE_FMT_FLT, 48000, 1);
+		return popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
 	}
 
 	std::shared_ptr<AVFrame> popAudio(AVSampleFormat format, int sampleRate,

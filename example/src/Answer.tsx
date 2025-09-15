@@ -59,7 +59,7 @@ export default function App() {
     })();
 
     return () => {
-      localStream?.getVideoTracks().forEach((track) => {
+      localStream?.getTracks().forEach((track) => {
         track.stop();
       });
       setStream(null);
@@ -126,7 +126,7 @@ export default function App() {
                     type: 'offer',
                   });
                   // setStream(localStream);
-                  stream?.getVideoTracks().forEach((track) => {
+                  stream?.getTracks().forEach((track) => {
                     pc.addTransceiver(track, { direction: 'sendonly' });
                   });
                   const answer = await pc.createAnswer();
