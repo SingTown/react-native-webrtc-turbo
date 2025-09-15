@@ -143,6 +143,7 @@ bool isRtpMapMatchExceptPayloadType(const rtc::Description::Media::RtpMap *a,
 			if (aLevelId != bLevelId)
 				return false;
 		}
+		return true;
 	} else if (a->format == "H265") {
 		int aProfileId = getH265ProfileId(a->fmtps);
 		int bProfileId = getH265ProfileId(b->fmtps);
@@ -153,9 +154,12 @@ bool isRtpMapMatchExceptPayloadType(const rtc::Description::Media::RtpMap *a,
 		int bTierFlag = getH265TierFlag(b->fmtps);
 		if (aTierFlag != bTierFlag)
 			return false;
+		return true;
+	} else if (a->format == "opus") {
+		return true;
+	} else {
+		return false;
 	}
-
-	return true;
 }
 
 std::string getFmtpsString(const std::vector<std::string> &fmtps) {
@@ -209,31 +213,63 @@ negotiateAnswerMedia(const rtc::Description &offer, int index,
 	auto supportedMedia = getSupportedMedia(offerMedia->mid(), direction, kind);
 
 	uint32_t ssrc = random() % UINT32_MAX;
-	rtc::Description::Video result(offerMedia->mid(), direction);
 
-	for (auto offerPt : offerMedia->payloadTypes()) {
-		auto offerRtpMap = offerMedia->rtpMap(offerPt);
-		if (!offerRtpMap) {
-			continue;
-		}
+	if (kind == "video") {
+		rtc::Description::Video result(offerMedia->mid(), direction);
 
-		for (auto supportedPt : supportedMedia.payloadTypes()) {
-			auto supportRtpMap = supportedMedia.rtpMap(supportedPt);
-			if (!supportRtpMap)
-				continue;
-
-			std::string format = offerRtpMap->format;
-			if (format != supportRtpMap->format) {
+		for (auto offerPt : offerMedia->payloadTypes()) {
+			auto offerRtpMap = offerMedia->rtpMap(offerPt);
+			if (!offerRtpMap) {
 				continue;
 			}
-			if (isRtpMapMatchExceptPayloadType(offerRtpMap, supportRtpMap)) {
-				result.addVideoCodec(offerRtpMap->payloadType, format,
-				                     getFmtpsString(offerRtpMap->fmtps));
+
+			for (auto supportedPt : supportedMedia.payloadTypes()) {
+				auto supportRtpMap = supportedMedia.rtpMap(supportedPt);
+				if (!supportRtpMap)
+					continue;
+
+				std::string format = offerRtpMap->format;
+				if (format != supportRtpMap->format) {
+					continue;
+				}
+				if (isRtpMapMatchExceptPayloadType(offerRtpMap,
+				                                   supportRtpMap)) {
+					result.addVideoCodec(offerRtpMap->payloadType, format,
+					                     getFmtpsString(offerRtpMap->fmtps));
+				}
 			}
 		}
+		result.addSSRC(ssrc, offerMedia->mid());
+		return result;
+	} else if (kind == "audio") {
+		rtc::Description::Audio result(offerMedia->mid(), direction);
+		for (auto offerPt : offerMedia->payloadTypes()) {
+			auto offerRtpMap = offerMedia->rtpMap(offerPt);
+			if (!offerRtpMap) {
+				continue;
+			}
+
+			for (auto supportedPt : supportedMedia.payloadTypes()) {
+				auto supportRtpMap = supportedMedia.rtpMap(supportedPt);
+				if (!supportRtpMap)
+					continue;
+
+				std::string format = offerRtpMap->format;
+				if (format != supportRtpMap->format) {
+					continue;
+				}
+				if (isRtpMapMatchExceptPayloadType(offerRtpMap,
+				                                   supportRtpMap)) {
+					result.addAudioCodec(offerRtpMap->payloadType, format,
+					                     getFmtpsString(offerRtpMap->fmtps));
+				}
+			}
+		}
+		result.addSSRC(ssrc, offerMedia->mid());
+		return result;
+	} else {
+		throw std::invalid_argument("Unsupported media type: " + kind);
 	}
-	result.addSSRC(ssrc, offerMedia->mid());
-	return result;
 }
 
 rtc::Description::Media::RtpMap

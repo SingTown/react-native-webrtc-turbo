@@ -51,6 +51,8 @@ target_link_libraries(
     ${FFMPEG_PATH}/lib/libavcodec.a
     ${FFMPEG_PATH}/lib/libavutil.a
     ${FFMPEG_PATH}/lib/libswscale.a
+    ${FFMPEG_PATH}/lib/libswresample.a
+    ${FFMPEG_PATH}/lib/libopus.a
     gtest
     gtest_main
 )
