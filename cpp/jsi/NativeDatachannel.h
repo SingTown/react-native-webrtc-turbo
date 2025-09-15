@@ -15,7 +15,8 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	                                 const std::vector<std::string> &servers);
 	void closePeerConnection(jsi::Runtime &rt, const std::string &pc);
 
-	std::string createMediaStreamTrack(jsi::Runtime &rt);
+	std::string createMediaStreamTrack(jsi::Runtime &rt,
+	                                   const std::string &kind);
 	void stopMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
 
 	std::string createRTCRtpTransceiver(jsi::Runtime &rt, const std::string &pc,

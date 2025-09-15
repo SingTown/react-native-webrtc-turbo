@@ -111,18 +111,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
   size_t width = CVPixelBufferGetWidth(pixelBuffer);
   size_t height = CVPixelBufferGetHeight(pixelBuffer);
 
-  auto frame = createAVFrame();
-  frame->width = (int)width;
-  frame->height = (int)height;
-  frame->format = AV_PIX_FMT_NV12;
-  frame->pts = pts_90k - self.ptsBase;
-
-  int ret = av_frame_get_buffer(frame.get(), 32);
-  if (ret < 0) {
-      NSLog(@"av_frame_get_buffer failed: %d", ret);
-      CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
-      return;
-  }
+  auto frame = createVideoFrame(AV_PIX_FMT_NV12, pts_90k - self.ptsBase, width, height);
   uint8_t *srcY = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
   uint8_t *srcUV = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
   int srcYStride = (int)CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);

@@ -12,9 +12,172 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/log.h>
+#include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 #undef AVMediaType
 }
+
+inline std::shared_ptr<AVPacket> createAVPacket() {
+	return std::shared_ptr<AVPacket>(av_packet_alloc(),
+	                                 [](AVPacket *f) { av_packet_free(&f); });
+}
+
+inline std::shared_ptr<AVFrame> createVideoFrame(AVPixelFormat format, int pts,
+                                                 int width, int height) {
+	auto frame = std::shared_ptr<AVFrame>(
+	    av_frame_alloc(), [](AVFrame *f) { av_frame_free(&f); });
+	if (!frame) {
+		throw std::runtime_error("Could not allocate AVFrame");
+	}
+	frame->format = format;
+	frame->pts = pts;
+	frame->width = width;
+	frame->height = height;
+
+	if (av_frame_get_buffer(frame.get(), 32) < 0) {
+		throw std::runtime_error("Could not allocate AVFrame");
+	}
+	return frame;
+}
+
+inline std::shared_ptr<AVFrame> createAudioFrame(AVSampleFormat format, int pts,
+                                                 int sampleRate, int channels,
+                                                 int nb_samples) {
+	auto frame = std::shared_ptr<AVFrame>(
+	    av_frame_alloc(), [](AVFrame *f) { av_frame_free(&f); });
+	if (!frame) {
+		throw std::runtime_error("Could not allocate AVFrame");
+	}
+	frame->format = format;
+	frame->pts = pts;
+	frame->sample_rate = sampleRate;
+	frame->nb_samples = nb_samples;
+	av_channel_layout_default(&frame->ch_layout, channels);
+
+	if (av_frame_get_buffer(frame.get(), 0) < 0) {
+		throw std::runtime_error("Could not allocate AVFrame");
+	}
+	return frame;
+}
+
+class Scaler {
+  private:
+	SwsContext *sws_ctx;
+	std::mutex mutex;
+
+  public:
+	std::shared_ptr<AVFrame> scale(std::shared_ptr<AVFrame> frame,
+	                               AVPixelFormat format, int width,
+	                               int height) {
+		std::lock_guard lock(mutex);
+		if (!frame) {
+			return nullptr;
+		}
+		if (frame->format == format && frame->width == width &&
+		    frame->height == height) {
+			return frame;
+		}
+
+		auto dst = createVideoFrame(format, frame->pts, width, height);
+		sws_ctx = sws_getCachedContext(sws_ctx, frame->width, frame->height,
+		                               (AVPixelFormat)frame->format, dst->width,
+		                               dst->height, (AVPixelFormat)dst->format,
+		                               SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+		if (sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height,
+		              dst->data, dst->linesize) < 0) {
+			throw std::runtime_error("Could not scale image");
+		}
+		return dst;
+	}
+	~Scaler() {
+		if (sws_ctx) {
+			sws_freeContext(sws_ctx);
+			sws_ctx = nullptr;
+		}
+	}
+};
+
+class Resampler {
+  private:
+	SwrContext *swr_ctx;
+	std::mutex mutex;
+	AVSampleFormat inFormat = AV_SAMPLE_FMT_NONE;
+	int inChannels = 0;
+	int inSampleRate = 0;
+	AVSampleFormat outFormat = AV_SAMPLE_FMT_NONE;
+	int outChannels = 0;
+	int outSampleRate = 0;
+
+  public:
+	std::shared_ptr<AVFrame> resample(std::shared_ptr<AVFrame> frame,
+	                                  AVSampleFormat format, int sampleRate,
+	                                  int channels) {
+		std::lock_guard lock(mutex);
+
+		if (!frame) {
+			return nullptr;
+		}
+		if (frame->format == format && frame->sample_rate == sampleRate &&
+		    frame->ch_layout.nb_channels == channels) {
+			return frame;
+		}
+		AVSampleFormat inFormat = (AVSampleFormat)frame->format;
+		int inChannels = frame->ch_layout.nb_channels;
+		int inSampleRate = frame->sample_rate;
+
+		AVSampleFormat outFormat = format;
+		int outChannels = channels;
+		int outSampleRate = sampleRate;
+
+		auto dst = createAudioFrame(outFormat, frame->pts, outSampleRate,
+		                            outChannels, frame->nb_samples);
+		if (inFormat != this->inFormat || inChannels != this->inChannels ||
+		    inSampleRate != this->inSampleRate ||
+		    outFormat != this->outFormat || outChannels != this->outChannels ||
+		    outSampleRate != this->outSampleRate) {
+			if (swr_ctx) {
+				swr_free(&swr_ctx);
+				swr_ctx = nullptr;
+			}
+		}
+		if (!swr_ctx) {
+			int ret = swr_alloc_set_opts2(
+			    &swr_ctx, &dst->ch_layout, (AVSampleFormat)dst->format,
+			    dst->sample_rate, &frame->ch_layout,
+			    (AVSampleFormat)frame->format, frame->sample_rate, 0, nullptr);
+			if (ret < 0) {
+				throw std::runtime_error(
+				    "Could not allocate resampler context");
+			}
+
+			ret = swr_init(swr_ctx);
+			if (ret < 0) {
+				throw std::runtime_error("Could not open resample context");
+			}
+		}
+
+		dst->nb_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
+
+		if (av_frame_get_buffer(dst.get(), 0) < 0) {
+			throw std::runtime_error("Could not allocate audio buffer");
+		}
+
+		int ret = swr_convert(swr_ctx, dst->data, dst->nb_samples, frame->data,
+		                      frame->nb_samples);
+		dst->nb_samples = ret;
+		if (ret < 0) {
+			throw std::runtime_error("Could not convert audio");
+		}
+		return dst;
+	}
+	~Resampler() {
+		if (swr_ctx) {
+			swr_free(&swr_ctx);
+			swr_ctx = nullptr;
+		}
+	}
+};
 
 class Encoder {
   private:
@@ -36,6 +199,96 @@ class Encoder {
 	}
 
   public:
+	std::vector<std::shared_ptr<AVPacket>>
+	encode(std::shared_ptr<AVFrame> frame) {
+		std::lock_guard lock(mutex);
+
+		if (ctx && frame) {
+			if (encoder->type == AVMEDIA_TYPE_VIDEO &&
+			    (ctx->width != frame->width || ctx->height != frame->height ||
+			     ctx->pix_fmt != frame->format)) {
+				LOGI("destroy ctx: %p\n", ctx);
+				destroy();
+			} else if (encoder->type == AVMEDIA_TYPE_AUDIO &&
+			           (ctx->sample_rate != frame->sample_rate ||
+			            av_channel_layout_compare(&ctx->ch_layout,
+			                                      &frame->ch_layout) != 0 ||
+			            ctx->sample_fmt != (AVSampleFormat)frame->format)) {
+				LOGI("destroy ctx: %p\n", ctx);
+				destroy();
+			}
+		}
+
+		if (!ctx && frame) {
+			// init
+			ctx = avcodec_alloc_context3(encoder);
+			if (!ctx)
+				throw std::runtime_error("Could not allocate AVCodecContext");
+
+			if (encoder->id == AV_CODEC_ID_H264) {
+				printf("init H264 ctx\n");
+				ctx->width = frame->width;
+				ctx->height = frame->height;
+				ctx->time_base = (AVRational){1, 90000};
+				ctx->framerate = (AVRational){30, 1};
+				ctx->bit_rate = 1000000; // 1Mbps ~ 130KB/s
+				ctx->gop_size = 60;
+				ctx->max_b_frames = 0;
+				ctx->pix_fmt = (AVPixelFormat)frame->format;
+				ctx->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+				ctx->color_range = AVCOL_RANGE_MPEG;
+				ctx->color_primaries = AVCOL_PRI_BT709;
+				ctx->color_trc = AVCOL_TRC_BT709;
+				ctx->colorspace = AVCOL_SPC_BT709;
+			} else if (encoder->id == AV_CODEC_ID_H265) {
+				printf("init H265 ctx\n");
+				ctx->width = frame->width;
+				ctx->height = frame->height;
+				ctx->time_base = (AVRational){1, 90000};
+				ctx->framerate = (AVRational){30, 1};
+				ctx->bit_rate = 1000000; // 1Mbps ~ 130KB/s
+				ctx->gop_size = 60;
+				ctx->max_b_frames = 0;
+				ctx->pix_fmt = (AVPixelFormat)frame->format;
+				ctx->profile = FF_PROFILE_HEVC_MAIN;
+				ctx->color_range = AVCOL_RANGE_MPEG;
+				ctx->color_primaries = AVCOL_PRI_BT709;
+				ctx->color_trc = AVCOL_TRC_BT709;
+				ctx->colorspace = AVCOL_SPC_BT709;
+			} else if (encoder->id == AV_CODEC_ID_OPUS) {
+				printf("init opus ctx\n");
+				ctx->time_base = (AVRational){1, 48000};
+				ctx->sample_rate = 48000;
+				ctx->bit_rate = 64000; // 64kbps ~ 8KB/s
+				ctx->sample_fmt = (AVSampleFormat)frame->format;
+				if (av_channel_layout_copy(&ctx->ch_layout, &frame->ch_layout) <
+				    0) {
+					throw std::runtime_error("Could not copy channel layout");
+				}
+			}
+			ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+			if (avcodec_open2(ctx, encoder, NULL) < 0)
+				throw std::runtime_error("Could not open codec");
+		}
+
+		int ret = avcodec_send_frame(ctx, frame.get());
+		if (ret < 0) {
+			throw std::runtime_error("Error sending frame");
+		}
+
+		std::vector<std::shared_ptr<AVPacket>> packets;
+		while (1) {
+			auto packet = createAVPacket();
+			int ret = avcodec_receive_packet(ctx, packet.get());
+			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+				break;
+			else if (ret < 0)
+				throw std::runtime_error("Error during decoding");
+			packets.push_back(packet);
+		}
+		return packets;
+	}
+
 	Encoder(AVCodecID codecId) : encoder(nullptr), ctx(nullptr) {
 		std::lock_guard lock(mutex);
 		encoder = avcodec_find_encoder(codecId);
@@ -46,73 +299,6 @@ class Encoder {
 		}
 		if (!encoder)
 			throw std::runtime_error("Could not find encoder");
-	}
-
-	std::vector<std::shared_ptr<AVPacket>>
-	encode(std::shared_ptr<AVFrame> frame) {
-		std::lock_guard lock(mutex);
-		if (!frame) {
-			throw std::runtime_error("frame is nullptr");
-		}
-		if (ctx) {
-			if (ctx->width != frame->width || ctx->height != frame->height ||
-			    ctx->pix_fmt != frame->format) {
-				LOGI("destroy ctx: %p\n", ctx);
-				destroy();
-			}
-		}
-
-		if (!ctx) {
-			printf("init ctx\n");
-			// init
-			ctx = avcodec_alloc_context3(encoder);
-			if (!ctx)
-				throw std::runtime_error("Could not allocate AVCodecContext");
-
-			ctx->width = frame->width;
-			ctx->height = frame->height;
-			ctx->time_base = (AVRational){1, 90000};
-			ctx->framerate = (AVRational){30, 1};
-			ctx->bit_rate = 1000000; // 1Mbps ~ 130KB/s
-			ctx->gop_size = 60;
-			ctx->max_b_frames = 0;
-			ctx->pix_fmt = (AVPixelFormat)frame->format;
-			ctx->color_range = AVCOL_RANGE_MPEG;
-			ctx->color_primaries = AVCOL_PRI_BT709;
-			ctx->color_trc = AVCOL_TRC_BT709;
-			ctx->colorspace = AVCOL_SPC_BT709;
-			if (encoder->id == AV_CODEC_ID_H264) {
-				ctx->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
-			} else if (encoder->id == AV_CODEC_ID_H265) {
-				ctx->profile = FF_PROFILE_HEVC_MAIN;
-			}
-			ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-			if (avcodec_open2(ctx, encoder, NULL) < 0)
-				throw std::runtime_error("Could not open codec");
-		}
-
-		int ret = avcodec_send_frame(ctx, frame.get());
-		if (ret < 0) {
-			char errbuf[128];
-			av_strerror(ret, errbuf, sizeof(errbuf));
-			throw std::runtime_error("Error sending frame");
-		}
-
-		std::vector<std::shared_ptr<AVPacket>> packets;
-		while (1) {
-			std::shared_ptr<AVPacket> packet(
-			    av_packet_alloc(), [](AVPacket *f) { av_packet_free(&f); });
-			if (!packet)
-				throw std::runtime_error("Could not allocate AVPacket");
-
-			int ret = avcodec_receive_packet(ctx, packet.get());
-			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-				break;
-			else if (ret < 0)
-				throw std::runtime_error("Error during decoding");
-			packets.push_back(packet);
-		}
-		return packets;
 	}
 
 	~Encoder() { destroy(); }
@@ -133,7 +319,14 @@ class Decoder {
 		ctx = avcodec_alloc_context3(decoder);
 		if (!ctx)
 			throw std::runtime_error("Could not allocate AVCodecContext");
-
+		if (decoder->id == AV_CODEC_ID_OPUS) {
+			printf("init opus ctx\n");
+			ctx->time_base = (AVRational){1, 48000};
+			ctx->sample_rate = 48000;
+			ctx->bit_rate = 64000;
+			ctx->sample_fmt = AV_SAMPLE_FMT_FLT;
+			av_channel_layout_default(&ctx->ch_layout, 2);
+		}
 		ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
 		if (avcodec_open2(ctx, decoder, NULL) < 0)
 			throw std::runtime_error("Could not open codec");
@@ -142,7 +335,6 @@ class Decoder {
 	std::vector<std::shared_ptr<AVFrame>>
 	decode(std::shared_ptr<AVPacket> packet) {
 		std::lock_guard lock(mutex);
-
 		if (avcodec_send_packet(ctx, packet.get()) < 0) {
 			throw std::runtime_error("Error sending packet");
 		}
@@ -175,12 +367,3 @@ class Decoder {
 		}
 	}
 };
-
-inline std::shared_ptr<AVPacket> createAVPacket() {
-	return std::shared_ptr<AVPacket>(av_packet_alloc(),
-	                                 [](AVPacket *f) { av_packet_free(&f); });
-}
-inline std::shared_ptr<AVFrame> createAVFrame() {
-	return std::shared_ptr<AVFrame>(av_frame_alloc(),
-	                                [](AVFrame *f) { av_frame_free(&f); });
-}

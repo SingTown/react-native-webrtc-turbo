@@ -86,9 +86,16 @@ void NativeDatachannel::closePeerConnection([[maybe_unused]] jsi::Runtime &rt,
 }
 
 std::string
-NativeDatachannel::createMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt) {
-	auto mediaStreamTrack = std::make_shared<MediaStreamTrack>();
-	return emplaceMediaStreamTrack(mediaStreamTrack);
+NativeDatachannel::createMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt,
+                                          const std::string &kind) {
+	if (kind == "audio") {
+		auto mediaStreamTrack = std::make_shared<AudioStreamTrack>();
+		return emplaceAudioStreamTrack(mediaStreamTrack);
+	} else if (kind == "video") {
+		auto mediaStreamTrack = std::make_shared<VideoStreamTrack>();
+		return emplaceVideoStreamTrack(mediaStreamTrack);
+	}
+	throw std::invalid_argument("kind must be 'audio' or 'video'");
 }
 
 std::string NativeDatachannel::createRTCRtpTransceiver(

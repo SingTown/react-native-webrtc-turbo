@@ -16,11 +16,11 @@ Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
 		return nullptr;
 	}
 
-	auto mediaStreamTrack = getMediaStreamTrack(idStr);
-	if (!mediaStreamTrack) {
+	auto videoStreamTrack = getVideoStreamTrack(idStr);
+	if (!videoStreamTrack) {
 		return nullptr;
 	}
-	auto frame = mediaStreamTrack->pop(AV_PIX_FMT_RGBA);
+	auto frame = videoStreamTrack->popVideo(AV_PIX_FMT_RGBA);
 	if (!frame) {
 		return nullptr;
 	}
@@ -72,8 +72,8 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	if (idStr.empty()) {
 		return;
 	}
-	auto mediaStreamTrack = getMediaStreamTrack(idStr);
-	if (!mediaStreamTrack) {
+	auto videoStreamTrack = getVideoStreamTrack(idStr);
+	if (!videoStreamTrack) {
 		return;
 	}
 
@@ -127,16 +127,8 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 		isFirstFrame = false;
 	}
 
-	auto frame = createAVFrame();
-	frame->width = (int)width;
-	frame->height = (int)height;
-	frame->format = AV_PIX_FMT_NV12;
-	frame->pts = (timestamp - baseTimestamp) * 9 / 100000;
-
-	int ret = av_frame_get_buffer(frame.get(), 32);
-	if (ret < 0) {
-		throw std::runtime_error("Could not allocate image");
-	}
+	int pts = (timestamp - baseTimestamp) * 9 / 100000;
+	auto frame = createVideoFrame(AV_PIX_FMT_NV12, pts, width, height);
 
 	// Copy Y
 	for (int y = 0; y < height; ++y) {
@@ -161,7 +153,7 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	env->DeleteLocalRef(imageClass);
 	env->DeleteLocalRef(planeClass);
 
-	mediaStreamTrack->push(frame);
+	videoStreamTrack->push(frame);
 }
 }
 } // namespace facebook::react

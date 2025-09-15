@@ -8,6 +8,28 @@
 #include <mutex>
 #include <queue>
 
+#define SAMPLE_RATE 48000
+#define CHANNELS 2
+#define FRAME_SIZE 960
+
+class MediaStreamTrack {
+  protected:
+	std::recursive_mutex mutex;
+
+  public:
+	MediaStreamTrack() = default;
+	virtual std::string type() = 0;
+	virtual void push(std::shared_ptr<AVFrame> frame) = 0;
+	virtual std::shared_ptr<AVFrame> pop() = 0;
+	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
+
+	void onPush(std::function<void(std::shared_ptr<AVFrame>)> callback) {
+		std::lock_guard lock(mutex);
+		onPushCallback = callback;
+	}
+	virtual ~MediaStreamTrack() { onPushCallback = nullptr; }
+};
+
 struct ComparePTS {
 	bool operator()(std::shared_ptr<AVFrame> &a,
 	                std::shared_ptr<AVFrame> &b) const {
@@ -15,29 +37,20 @@ struct ComparePTS {
 	}
 };
 
-class MediaStreamTrack {
+class VideoStreamTrack : public MediaStreamTrack {
   private:
 	std::priority_queue<std::shared_ptr<AVFrame>,
 	                    std::vector<std::shared_ptr<AVFrame>>, ComparePTS>
 	    queue;
-	std::mutex mutex;
-	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
-	struct SwsContext *sws_ctx;
-	int64_t pts;
+	Scaler scalerIn;
+	Scaler scalerOut;
 
   public:
-	~MediaStreamTrack() {
-		onPushCallback = nullptr;
-		if (sws_ctx) {
-			sws_freeContext(sws_ctx);
-			sws_ctx = nullptr;
-		}
-	}
-
-	void push(std::shared_ptr<AVFrame> frame) {
+	std::string type() override { return "video"; }
+	void push(std::shared_ptr<AVFrame> frame) override {
 		std::function<void(std::shared_ptr<AVFrame>)> callbackCopy;
 		{
-			std::lock_guard<std::mutex> lock(mutex);
+			std::lock_guard lock(mutex);
 			if (!frame) {
 				return;
 			}
@@ -53,59 +66,104 @@ class MediaStreamTrack {
 		}
 	}
 
-	std::shared_ptr<AVFrame> pop(AVPixelFormat format, size_t bufferSize = 0) {
-		std::lock_guard<std::mutex> lock(mutex);
-		std::shared_ptr<AVFrame> frame;
-		while (queue.size() > bufferSize) {
-			auto f = queue.top();
-			queue.pop();
-			if (f->pts < pts) {
-				LOGI("drop pts: %" PRId64 ", last pts: %" PRId64 "\n", f->pts,
-				     pts);
-				continue;
-			} else {
-				frame = f;
-				pts = f->pts;
-				break;
-			}
+	void pushVideo(std::shared_ptr<AVFrame> frame, AVPixelFormat format,
+	               int width, int height) {
+		push(scalerIn.scale(frame, format, width, height));
+	}
+
+	std::shared_ptr<AVFrame> pop() override {
+		std::lock_guard lock(mutex);
+		if (queue.empty()) {
+			return nullptr;
 		}
+		auto frame = queue.top();
+		queue.pop();
+		return frame;
+	}
+
+	std::shared_ptr<AVFrame> popVideo(AVPixelFormat format) {
+		auto frame = pop();
 		if (!frame) {
 			return nullptr;
 		}
+		return scalerOut.scale(frame, format, frame->width, frame->height);
+	}
+};
 
-		if (frame->format == format) {
-			return frame;
+class AudioStreamTrack : public MediaStreamTrack {
+  private:
+	int64_t pts;
+	std::vector<float> pcm;
+	Resampler resamplerIn;
+	Resampler resamplerOut;
+
+  public:
+	std::string type() override { return "audio"; }
+
+	void push(std::shared_ptr<AVFrame> frame) override {
+		std::function<void(std::shared_ptr<AVFrame>)> callbackCopy;
+		{
+			std::lock_guard lock(mutex);
+			if (!frame) {
+				return;
+			}
+			if (pcm.empty()) {
+				pts = frame->pts;
+			}
+			if (pcm.size() > 960 * 10) {
+				// drop
+				pcm.erase(pcm.begin(), pcm.begin() + frame->nb_samples);
+			}
+
+			if (frame->format != AV_SAMPLE_FMT_FLT ||
+			    frame->sample_rate != SAMPLE_RATE ||
+			    frame->ch_layout.nb_channels != CHANNELS) {
+				frame = resamplerIn.resample(frame, AV_SAMPLE_FMT_FLT,
+				                             SAMPLE_RATE, CHANNELS);
+			}
+			auto data = (float *)frame->data[0];
+			pcm.insert(pcm.end(), data,
+			           data + frame->nb_samples * frame->ch_layout.nb_channels);
+			callbackCopy = onPushCallback;
 		}
 
-		auto dst = createAVFrame();
-		if (!dst)
-			throw std::runtime_error("Could not allocate AVFrame");
-		dst->format = format;
-		dst->width = frame->width;
-		dst->height = frame->height;
-		dst->pts = frame->pts;
-		if (av_frame_get_buffer(dst.get(), 32) < 0) {
-			throw std::runtime_error("Could not allocate RGBA image");
+		if (callbackCopy) {
+			callbackCopy(frame);
 		}
-
-		sws_ctx = sws_getCachedContext(sws_ctx, frame->width, frame->height,
-		                               (AVPixelFormat)frame->format, dst->width,
-		                               dst->height, (AVPixelFormat)dst->format,
-		                               SWS_BILINEAR, nullptr, nullptr, nullptr);
-
-		if (sws_scale(sws_ctx, frame->data, frame->linesize, 0, frame->height,
-		              dst->data, dst->linesize) < 0) {
-			throw std::runtime_error("Could not scale image");
-		}
-		return dst;
 	}
 
-	void onPush(std::function<void(std::shared_ptr<AVFrame>)> callback) {
-		std::lock_guard<std::mutex> lock(mutex);
-		onPushCallback = callback;
+	std::shared_ptr<AVFrame> pop() override {
+		return popAudio(AV_SAMPLE_FMT_FLT, 48000, 1);
+	}
+
+	std::shared_ptr<AVFrame> popAudio(AVSampleFormat format, int sampleRate,
+	                                  int channels) {
+		std::lock_guard lock(mutex);
+		if (pcm.size() < FRAME_SIZE * CHANNELS) {
+			return nullptr;
+		}
+		auto frame = createAudioFrame(AV_SAMPLE_FMT_FLT, pts, SAMPLE_RATE,
+		                              CHANNELS, FRAME_SIZE);
+		pts += frame->nb_samples;
+		memcpy(frame->data[0], pcm.data(),
+		       frame->nb_samples * sizeof(float) * CHANNELS);
+		pcm.erase(pcm.begin(), pcm.begin() + frame->nb_samples * CHANNELS);
+		if (format != AV_SAMPLE_FMT_FLT || sampleRate != SAMPLE_RATE ||
+		    channels != CHANNELS) {
+			return resamplerOut.resample(frame, format, sampleRate, channels);
+		} else {
+			return frame;
+		}
 	}
 };
 
 std::shared_ptr<MediaStreamTrack> getMediaStreamTrack(const std::string &id);
-std::string emplaceMediaStreamTrack(std::shared_ptr<MediaStreamTrack> ptr);
 void eraseMediaStreamTrack(const std::string &id);
+
+std::shared_ptr<VideoStreamTrack> getVideoStreamTrack(const std::string &id);
+std::string emplaceVideoStreamTrack(std::shared_ptr<VideoStreamTrack> ptr);
+void eraseVideoStreamTrack(const std::string &id);
+
+std::shared_ptr<AudioStreamTrack> getAudioStreamTrack(const std::string &id);
+std::string emplaceAudioStreamTrack(std::shared_ptr<AudioStreamTrack> ptr);
+void eraseAudioStreamTrack(const std::string &id);

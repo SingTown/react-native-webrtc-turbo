@@ -1,25 +1,66 @@
 #include "MediaStreamTrack.h"
 
-std::unordered_map<std::string, std::shared_ptr<MediaStreamTrack>>
-    mediaStreamTrackMap;
+std::unordered_map<std::string, std::shared_ptr<VideoStreamTrack>>
+    videoStreamTrackMap;
+
+std::unordered_map<std::string, std::shared_ptr<AudioStreamTrack>>
+    audioStreamTrackMap;
 
 std::shared_ptr<MediaStreamTrack> getMediaStreamTrack(const std::string &id) {
-	if (auto it = mediaStreamTrackMap.find(id); it != mediaStreamTrackMap.end())
+	auto videoStreamTrack = getVideoStreamTrack(id);
+	if (videoStreamTrack) {
+		return videoStreamTrack;
+	}
+	auto audioStreamTrack = getAudioStreamTrack(id);
+	if (audioStreamTrack) {
+		return audioStreamTrack;
+	}
+	return nullptr;
+}
+
+void eraseMediaStreamTrack(const std::string &id) {
+	eraseVideoStreamTrack(id);
+	eraseAudioStreamTrack(id);
+}
+
+std::shared_ptr<VideoStreamTrack> getVideoStreamTrack(const std::string &id) {
+	if (auto it = videoStreamTrackMap.find(id); it != videoStreamTrackMap.end())
 		return it->second;
 	else
 		return nullptr;
 }
 
-std::string emplaceMediaStreamTrack(std::shared_ptr<MediaStreamTrack> ptr) {
+std::string emplaceVideoStreamTrack(std::shared_ptr<VideoStreamTrack> ptr) {
 	std::string id = genUUIDV4();
-	mediaStreamTrackMap.emplace(std::make_pair(id, ptr));
+	videoStreamTrackMap.emplace(std::make_pair(id, ptr));
 	return id;
 }
 
-void eraseMediaStreamTrack(const std::string &id) {
-	auto mediaStreamTrack = getMediaStreamTrack(id);
-	if (mediaStreamTrack) {
-		mediaStreamTrack->onPush(nullptr);
+void eraseVideoStreamTrack(const std::string &id) {
+	auto videoStreamTrack = getVideoStreamTrack(id);
+	if (videoStreamTrack) {
+		videoStreamTrack->onPush(nullptr);
 	}
-	mediaStreamTrackMap.erase(id);
+	videoStreamTrackMap.erase(id);
+}
+
+std::shared_ptr<AudioStreamTrack> getAudioStreamTrack(const std::string &id) {
+	if (auto it = audioStreamTrackMap.find(id); it != audioStreamTrackMap.end())
+		return it->second;
+	else
+		return nullptr;
+}
+
+std::string emplaceAudioStreamTrack(std::shared_ptr<AudioStreamTrack> ptr) {
+	std::string id = genUUIDV4();
+	audioStreamTrackMap.emplace(std::make_pair(id, ptr));
+	return id;
+}
+
+void eraseAudioStreamTrack(const std::string &id) {
+	auto audioStreamTrack = getAudioStreamTrack(id);
+	if (audioStreamTrack) {
+		audioStreamTrack->onPush(nullptr);
+	}
+	audioStreamTrackMap.erase(id);
 }

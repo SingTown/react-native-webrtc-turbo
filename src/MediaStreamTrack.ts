@@ -8,7 +8,7 @@ export class MediaStreamTrack {
 
   constructor(kind: 'audio' | 'video') {
     this.kind = kind;
-    this.id = NativeDatachannel.createMediaStreamTrack();
+    this.id = NativeDatachannel.createMediaStreamTrack(kind);
   }
 
   stop() {

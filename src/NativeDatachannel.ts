@@ -19,7 +19,7 @@ export interface Spec extends TurboModule {
   createPeerConnection(servers: string[]): string;
   closePeerConnection(pc: string): void;
 
-  createMediaStreamTrack(): string;
+  createMediaStreamTrack(kind: string): string;
   stopMediaStreamTrack(id: string): void;
 
   createRTCRtpTransceiver(

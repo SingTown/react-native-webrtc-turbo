@@ -44,7 +44,7 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	    [mediaStreamTrack, encoder,
 	     track]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
 		    while (1) {
-			    auto frame = mediaStreamTrack->pop(AV_PIX_FMT_NV12);
+			    auto frame = mediaStreamTrack->pop();
 			    if (!frame) {
 				    return;
 			    }
