@@ -15,13 +15,13 @@ export default function Camera() {
     (async () => {
       localStream = await MediaDevices.getUserMedia({
         video: true,
-        audio: false,
+        audio: true,
       });
       setStream(localStream);
     })();
 
     return () => {
-      localStream?.getVideoTracks().forEach((track) => {
+      localStream?.getTracks().forEach((track) => {
         track.stop();
       });
       setStream(null);

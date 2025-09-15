@@ -15,6 +15,8 @@ export class MediaStreamTrack {
     NativeDatachannel.stopMediaStreamTrack(this.id);
     if (this.kind === 'video') {
       NativeMediaDevice.deleteCamera(this.id);
+    } else if (this.kind === 'audio') {
+      NativeMediaDevice.deleteAudio(this.id);
     }
   }
 }

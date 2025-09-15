@@ -1,5 +1,6 @@
 #import "WebrtcFabric.h"
 #import "MediaStreamTrack.h"
+#import "AudioSession.h"
 
 #import <react/renderer/components/WebrtcSpec/ComponentDescriptors.h>
 #import <react/renderer/components/WebrtcSpec/EventEmitters.h>
@@ -40,9 +41,7 @@ using namespace facebook::react;
     
     _ciContext = [CIContext contextWithOptions:nil];
     self.contentView = _view;
-    CADisplayLink * _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateFrame)];
-    _displayLink.preferredFramesPerSecond = 100;
-    [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    [self scheduleNextVideoFrame];
   }
   
   return self;
@@ -58,9 +57,21 @@ using namespace facebook::react;
   }
   if (oldViewProps.audioStreamTrackId != newViewProps.audioStreamTrackId) {
     _currentAudioStreamTrackId = newViewProps.audioStreamTrackId;
+    AudioSession *audioSession = [AudioSession sharedInstance];
+    [audioSession playerPopMediaStreamTrack:
+     [NSString stringWithUTF8String:oldViewProps.audioStreamTrackId.c_str()]];
+    [audioSession playerPushMediaStreamTrack:
+     [NSString stringWithUTF8String:_currentAudioStreamTrackId.c_str()]];
   }
   
   [super updateProps:props oldProps:oldProps];
+}
+
+- (void)prepareForRecycle {
+  AudioSession *audioSession = [AudioSession sharedInstance];
+  [audioSession playerPopMediaStreamTrack:
+   [NSString stringWithUTF8String:_currentAudioStreamTrackId.c_str()]];
+  [super prepareForRecycle];
 }
 
 - (void)layoutSubviews {
@@ -73,72 +84,75 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
   return WebrtcFabric.class;
 }
 
-- (void)updateFrame {
-  
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
- ^{
-    if (self->_currentVideoStreamTrackId.empty()) {
-      return;
-    }
-
-    auto videoStream = getVideoStreamTrack(self->_currentVideoStreamTrackId);
-    if (!videoStream) {
-      return;
-    }
-    auto frame = videoStream->popVideo(AV_PIX_FMT_RGB24);
-    if (!frame) {
-      return;
-    }
-
-    int rgbBufferSize = frame->width * frame->height * 3;
-    uint8_t *rgbBuffer = (uint8_t *)malloc(rgbBufferSize);
-    for (int y = 0; y < frame->height; y++) {
-      uint8_t *src = frame->data[0] + y * frame->linesize[0];
-      uint8_t *dst = rgbBuffer + y * frame->width * 3;
-      memcpy(dst, src, frame->width * 3);
-    }
-
-    CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL,
-                                                                  rgbBuffer,
-                                                                  rgbBufferSize,
-                                                                  [](void *info,
-                                                                     const void *data,
-                                                                     size_t size) {
-      free((void*)data);
-    });
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaNone;
-    CGImageRef cgImage = CGImageCreate(
-                                       frame->width,                          // width
-                                       frame->height,                         // height
-                                       8,                              // bitsPerComponent
-                                       24,                             // bitsPerPixel (RGBA= 8*3)
-                                       frame->width * 3,                       // bytesPerRow
-                                       colorSpace,                     // colorSpace
-                                       bitmapInfo,                     // bitmapInfo
-                                       dataProvider,                   // dataProvider
-                                       NULL,                           // decode
-                                       false,                          // shouldInterpolate
-                                       kCGRenderingIntentDefault       // intent
-                                       );
-   
-    if (cgImage) {
-      CIImage *ciImage = [CIImage imageWithCGImage:cgImage];
-      CGImageRef outputCGImage = [self->_ciContext createCGImage:ciImage fromRect:ciImage.extent];
-      UIImage *uiImage = [UIImage imageWithCGImage:outputCGImage];
-     
-      dispatch_async(dispatch_get_main_queue(), ^{
-        self->_imageView.image = uiImage;
-        self->_imageView.frame = self->_view.bounds;
-      });
-     
-      CGImageRelease(outputCGImage);
-      CGImageRelease(cgImage);
-    }
-   
-    CGColorSpaceRelease(colorSpace);
-    CGDataProviderRelease(dataProvider);
+- (void)scheduleNextVideoFrame {
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
+    [self updateVideoFrame];
+    [self scheduleNextVideoFrame];
   });
+}
+
+- (void)updateVideoFrame {
+  if (self->_currentVideoStreamTrackId.empty()) {
+    return;
+  }
+  
+  auto videoStream = getVideoStreamTrack(self->_currentVideoStreamTrackId);
+  if (!videoStream) {
+    return;
+  }
+  auto frame = videoStream->popVideo(AV_PIX_FMT_RGB24);
+  if (!frame) {
+    return;
+  }
+  
+  int rgbBufferSize = frame->width * frame->height * 3;
+  uint8_t *rgbBuffer = (uint8_t *)malloc(rgbBufferSize);
+  for (int y = 0; y < frame->height; y++) {
+    uint8_t *src = frame->data[0] + y * frame->linesize[0];
+    uint8_t *dst = rgbBuffer + y * frame->width * 3;
+    memcpy(dst, src, frame->width * 3);
+  }
+  
+  CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL,
+                                                                rgbBuffer,
+                                                                rgbBufferSize,
+                                                                [](void *info,
+                                                                   const void *data,
+                                                                   size_t size) {
+    free((void*)data);
+  });
+  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+  CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaNone;
+  CGImageRef cgImage = CGImageCreate(
+                                     frame->width,                          // width
+                                     frame->height,                         // height
+                                     8,                              // bitsPerComponent
+                                     24,                             // bitsPerPixel (RGBA= 8*3)
+                                     frame->width * 3,                       // bytesPerRow
+                                     colorSpace,                     // colorSpace
+                                     bitmapInfo,                     // bitmapInfo
+                                     dataProvider,                   // dataProvider
+                                     NULL,                           // decode
+                                     false,                          // shouldInterpolate
+                                     kCGRenderingIntentDefault       // intent
+                                     );
+  
+  if (cgImage) {
+    CIImage *ciImage = [CIImage imageWithCGImage:cgImage];
+    CGImageRef outputCGImage = [self->_ciContext createCGImage:ciImage fromRect:ciImage.extent];
+    UIImage *uiImage = [UIImage imageWithCGImage:outputCGImage];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+      self->_imageView.image = uiImage;
+      self->_imageView.frame = self->_view.bounds;
+    });
+    
+    CGImageRelease(outputCGImage);
+    CGImageRelease(cgImage);
+  }
+  
+  CGColorSpaceRelease(colorSpace);
+  CGDataProviderRelease(dataProvider);
 }
 
 @end

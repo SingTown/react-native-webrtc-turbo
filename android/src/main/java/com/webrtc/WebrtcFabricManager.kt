@@ -30,10 +30,10 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
 
   init {
     mDelegate = WebrtcFabricManagerDelegate(this)
-    scheduleNextFrame()
+    scheduleNextVideoFrame()
   }
 
-  private fun updateFrame() {
+  private fun updateVideoFrame() {
     frameExecutor.execute {
       currentView?.let { view ->
         try {
@@ -44,7 +44,7 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
             bitmap.recycle()
           }
         } catch (e: Exception) {
-          Log.e("WebrtcFabric", "Error updating frame", e)
+          Log.e("WebrtcFabric", "Error updating video frame", e)
         }
       }
     }
@@ -62,10 +62,10 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
     return WebrtcFabric(context)
   }
 
-  private fun scheduleNextFrame() {
+  private fun scheduleNextVideoFrame() {
     frameHandler.postDelayed({
-      updateFrame()
-      scheduleNextFrame()
+      updateVideoFrame()
+      scheduleNextVideoFrame()
     }, 10L)
   }
 
@@ -77,7 +77,15 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
 
   @ReactProp(name = "audioStreamTrackId")
   override fun setAudioStreamTrackId(view: WebrtcFabric, value: String?) {
-    this.audioStreamTrackId = value ?: ""
+    val current = value ?: ""
+    val old = this.audioStreamTrackId
+    if (old == current) {
+      return
+    }
+
+    Speaker.popAudioStreamTrack(old)
+    Speaker.pushMediaStreamTrackId(current)
+    this.audioStreamTrackId = current
   }
 
   companion object {

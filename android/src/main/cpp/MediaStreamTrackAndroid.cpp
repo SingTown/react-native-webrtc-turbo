@@ -1,22 +1,39 @@
 #include "MediaStreamTrack.h"
 #include <android/bitmap.h>
+#include <chrono>
 #include <jni.h>
 #include <string>
 
 namespace facebook::react {
-extern "C" {
-JNIEXPORT jobject JNICALL
-Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
-                                                        jstring id) {
 
+std::shared_ptr<VideoStreamTrack> getVideoStreamTrackJni(JNIEnv *env,
+                                                         jstring id) {
 	const char *idChars = env->GetStringUTFChars(id, nullptr);
 	std::string idStr(idChars);
 	env->ReleaseStringUTFChars(id, idChars);
 	if (idStr.empty()) {
 		return nullptr;
 	}
+	return getVideoStreamTrack(idStr);
+}
 
-	auto videoStreamTrack = getVideoStreamTrack(idStr);
+std::shared_ptr<AudioStreamTrack> getAudioStreamTrackJni(JNIEnv *env,
+                                                         jstring id) {
+	const char *idChars = env->GetStringUTFChars(id, nullptr);
+	std::string idStr(idChars);
+	env->ReleaseStringUTFChars(id, idChars);
+	if (idStr.empty()) {
+		return nullptr;
+	}
+	return getAudioStreamTrack(idStr);
+}
+
+extern "C" {
+
+JNIEXPORT jobject JNICALL
+Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
+                                                        jstring id) {
+	auto videoStreamTrack = getVideoStreamTrackJni(env, id);
 	if (!videoStreamTrack) {
 		return nullptr;
 	}
@@ -64,20 +81,13 @@ Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
 JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
     JNIEnv *env, jobject, jstring id, jobject image) {
 
-	static jlong baseTimestamp = 0;
-	static bool isFirstFrame = true;
-	const char *idChars = env->GetStringUTFChars(id, nullptr);
-	std::string idStr(idChars);
-	env->ReleaseStringUTFChars(id, idChars);
-	if (idStr.empty()) {
-		return;
-	}
-	auto videoStreamTrack = getVideoStreamTrack(idStr);
-	if (!videoStreamTrack) {
+	auto audioStreamTrack = getAudioStreamTrackJni(env, id);
+	if (!audioStreamTrack) {
 		return;
 	}
 
-	// LOGE("Java_com_webrtc_Camera_pushVideoStreamTrack: %s\n", idStr.c_str());
+	static jlong baseTimestamp = 0;
+	static bool isFirstFrame = true;
 
 	jclass imageClass = env->GetObjectClass(image);
 	jmethodID getWidthMethod = env->GetMethodID(imageClass, "getWidth", "()I");
@@ -129,7 +139,6 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 
 	int pts = (timestamp - baseTimestamp) * 9 / 100000;
 	auto frame = createVideoFrame(AV_PIX_FMT_NV12, pts, width, height);
-
 	// Copy Y
 	for (int y = 0; y < height; ++y) {
 		memcpy(frame->data[0] + y * frame->linesize[0],
@@ -153,7 +162,56 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	env->DeleteLocalRef(imageClass);
 	env->DeleteLocalRef(planeClass);
 
-	videoStreamTrack->push(frame);
+	audioStreamTrack->push(frame);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_com_webrtc_Speaker_popAudioStreamTrack(JNIEnv *env, jobject, jstring id) {
+	auto audioStreamTrack = getAudioStreamTrackJni(env, id);
+	if (!audioStreamTrack) {
+		return nullptr;
+	}
+	auto frame = audioStreamTrack->popAudio(AV_SAMPLE_FMT_S16, 48000, 2);
+	if (!frame) {
+		return nullptr;
+	}
+
+	const jbyte *sample = reinterpret_cast<const jbyte *>(frame->data[0]);
+	int length = frame->nb_samples * sizeof(int16_t) * 2;
+	jbyteArray byteArray = env->NewByteArray(length);
+	env->SetByteArrayRegion(byteArray, 0, length, sample);
+
+	return byteArray;
+}
+
+JNIEXPORT void JNICALL Java_com_webrtc_MicroPhone_pushAudioStreamTrack(
+    JNIEnv *env, jobject, jstring id, jbyteArray audioBuffer, jint size) {
+	static bool isFirstFrame = true;
+	static auto baseTimestamp = std::chrono::system_clock::now();
+
+	auto audioStreamTrack = getAudioStreamTrackJni(env, id);
+	if (!audioStreamTrack) {
+		return;
+	}
+
+	auto now = std::chrono::system_clock::now();
+	if (isFirstFrame) {
+		baseTimestamp = now;
+		isFirstFrame = false;
+	}
+
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+	              now - baseTimestamp)
+	              .count();
+
+	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, ms * 48, 48000, 1,
+	                              size / sizeof(int16_t));
+	jboolean isCopy = JNI_FALSE;
+	jbyte *audioData = env->GetByteArrayElements(audioBuffer, &isCopy);
+	memcpy(frame->data[0], audioData, size);
+	env->ReleaseByteArrayElements(audioBuffer, audioData, JNI_ABORT);
+
+	audioStreamTrack->push(frame);
 }
 }
 } // namespace facebook::react

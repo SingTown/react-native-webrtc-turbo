@@ -12,7 +12,7 @@ async function getUserMedia(
 ): Promise<MediaStream> {
   const mediaStream = new MediaStream();
   if (constraints.video) {
-    const allow = await NativeMediaDevice.requestCameraPermission();
+    const allow = await NativeMediaDevice.requestPermission('camera');
     if (!allow) {
       throw new Error('Camera permission denied');
     }
@@ -21,7 +21,12 @@ async function getUserMedia(
     mediaStream.addTrack(videoTrack);
   }
   if (constraints.audio) {
+    const allow = await NativeMediaDevice.requestPermission('microphone');
+    if (!allow) {
+      throw new Error('Microphone permission denied');
+    }
     const audioTrack = new MediaStreamTrack('audio');
+    await NativeMediaDevice.createAudio(audioTrack.id);
     mediaStream.addTrack(audioTrack);
   }
   return mediaStream;
