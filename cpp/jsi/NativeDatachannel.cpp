@@ -8,12 +8,7 @@
 #include <rtc/rtc.hpp>
 #include <string>
 
-void ffmpeg_callback([[maybe_unused]] void *ptr, [[maybe_unused]] int level,
-                     const char *fmt, va_list vl) {
-	LOGE(fmt, vl);
-}
-
-std::mutex mutex;
+static std::mutex mutex;
 
 std::unordered_map<std::string, std::shared_ptr<rtc::PeerConnection>>
     peerConnectionMap;
@@ -52,10 +47,7 @@ std::string emplaceTrack(std::shared_ptr<rtc::Track> ptr) {
 namespace facebook::react {
 
 NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
-    : NativeDatachannelCxxSpec(std::move(jsInvoker)) {
-	av_log_set_level(AV_LOG_ERROR);
-	av_log_set_callback(ffmpeg_callback);
-}
+    : NativeDatachannelCxxSpec(std::move(jsInvoker)) {}
 
 std::string NativeDatachannel::createPeerConnection(
     [[maybe_unused]] jsi::Runtime &rt,

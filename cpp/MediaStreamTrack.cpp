@@ -1,7 +1,7 @@
 #include "MediaStreamTrack.h"
 #include <mutex>
 
-std::mutex mutex;
+static std::recursive_mutex mutex;
 
 std::unordered_map<std::string, std::shared_ptr<VideoStreamTrack>>
     videoStreamTrackMap;
