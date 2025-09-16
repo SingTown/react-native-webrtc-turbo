@@ -110,7 +110,7 @@ class AudioStreamTrack : public MediaStreamTrack {
 			if (pcm.empty()) {
 				pts = frame->pts;
 			}
-			if (pcm.size() > 960 * 10) {
+			if (pcm.size() > 960 * 10) { // 200ms
 				// drop
 				pcm.erase(pcm.begin(), pcm.begin() + frame->nb_samples);
 			}

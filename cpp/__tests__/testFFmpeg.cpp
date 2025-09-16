@@ -22,6 +22,30 @@ TEST(CodecTest, testResampleFormat) {
 	}
 }
 
+TEST(CodecTest, testResamplePlanar) {
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 1, 48000, 2, 960);
+	float *leftData = (float *)inputFrame->data[0];
+	float *rightData = (float *)inputFrame->data[1];
+
+	for (int i = 0; i < 960; ++i) {
+		static std::mt19937 rng(std::random_device{}());
+		static std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+		leftData[i] = dist(rng);
+		rightData[i] = dist(rng);
+	}
+
+	auto resampler = Resampler();
+	auto outFrame =
+	    resampler.resample(inputFrame, AV_SAMPLE_FMT_S16P, 48000, 2);
+
+	int16_t *outLeft = (int16_t *)outFrame->data[0];
+	int16_t *outRight = (int16_t *)outFrame->data[1];
+	for (int i = 0; i < 960; ++i) {
+		EXPECT_NEAR(outLeft[i], (int16_t)(leftData[i] * 32767), 2);
+		EXPECT_NEAR(outRight[i], (int16_t)(rightData[i] * 32767), 2);
+	}
+}
+
 TEST(CodecTest, testResampleChannels12) {
 	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
 	float *inData = (float *)inputFrame->data[0];

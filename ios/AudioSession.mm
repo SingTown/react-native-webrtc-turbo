@@ -92,7 +92,9 @@ static AudioSession *_sharedInstance = nil;
     frame = createAudioFrame(AV_SAMPLE_FMT_FLTP, pts, buffer.format.sampleRate,
                              buffer.format.channelCount, buffer.frameLength);
     memcpy(frame->data[0], buffer.floatChannelData[0], buffer.frameLength * sizeof(float));
-    memcpy(frame->data[1], buffer.floatChannelData[1], buffer.frameLength * sizeof(float));
+    if (buffer.format.channelCount == 2) {
+      memcpy(frame->data[1], buffer.floatChannelData[1], buffer.frameLength * sizeof(float));
+    }
   }
   
   for (NSString *streamId in self.audioInStreamTrackIds) {

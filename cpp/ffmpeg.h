@@ -111,41 +111,37 @@ class Resampler {
 
   public:
 	std::shared_ptr<AVFrame> resample(std::shared_ptr<AVFrame> frame,
-	                                  AVSampleFormat format, int sampleRate,
-	                                  int channels) {
+	                                  AVSampleFormat outFormat,
+	                                  int outSampleRate, int outChannels) {
 		std::lock_guard lock(mutex);
 
 		if (!frame) {
 			return nullptr;
 		}
-		if (frame->format == format && frame->sample_rate == sampleRate &&
-		    frame->ch_layout.nb_channels == channels) {
-			return frame;
-		}
 		AVSampleFormat inFormat = (AVSampleFormat)frame->format;
 		int inChannels = frame->ch_layout.nb_channels;
 		int inSampleRate = frame->sample_rate;
 
-		AVSampleFormat outFormat = format;
-		int outChannels = channels;
-		int outSampleRate = sampleRate;
+		if (inFormat == outFormat && inSampleRate == outSampleRate &&
+		    inChannels == outChannels) {
+			return frame;
+		}
 
-		auto dst = createAudioFrame(outFormat, frame->pts, outSampleRate,
-		                            outChannels, frame->nb_samples);
-		if (inFormat != this->inFormat || inChannels != this->inChannels ||
-		    inSampleRate != this->inSampleRate ||
-		    outFormat != this->outFormat || outChannels != this->outChannels ||
-		    outSampleRate != this->outSampleRate) {
+		if (this->inFormat != inFormat || this->inChannels != inChannels ||
+		    this->inSampleRate != inSampleRate ||
+		    this->outFormat != outFormat || this->outChannels != outChannels ||
+		    this->outSampleRate != outSampleRate) {
 			if (swr_ctx) {
 				swr_free(&swr_ctx);
 				swr_ctx = nullptr;
 			}
 		}
 		if (!swr_ctx) {
-			int ret = swr_alloc_set_opts2(
-			    &swr_ctx, &dst->ch_layout, (AVSampleFormat)dst->format,
-			    dst->sample_rate, &frame->ch_layout,
-			    (AVSampleFormat)frame->format, frame->sample_rate, 0, nullptr);
+			AVChannelLayout outLayout;
+			av_channel_layout_default(&outLayout, outChannels);
+			int ret = swr_alloc_set_opts2(&swr_ctx, &outLayout, outFormat,
+			                              outSampleRate, &frame->ch_layout,
+			                              inFormat, inSampleRate, 0, nullptr);
 			if (ret < 0) {
 				throw std::runtime_error(
 				    "Could not allocate resampler context");
@@ -155,13 +151,17 @@ class Resampler {
 			if (ret < 0) {
 				throw std::runtime_error("Could not open resample context");
 			}
+			this->inFormat = inFormat;
+			this->inChannels = inChannels;
+			this->inSampleRate = inSampleRate;
+			this->outFormat = outFormat;
+			this->outChannels = outChannels;
+			this->outSampleRate = outSampleRate;
 		}
 
-		dst->nb_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
-
-		if (av_frame_get_buffer(dst.get(), 0) < 0) {
-			throw std::runtime_error("Could not allocate audio buffer");
-		}
+		int outSamples = swr_get_out_samples(swr_ctx, frame->nb_samples);
+		auto dst = createAudioFrame(outFormat, frame->pts, outSampleRate,
+		                            outChannels, outSamples);
 
 		int ret = swr_convert(swr_ctx, dst->data, dst->nb_samples, frame->data,
 		                      frame->nb_samples);
