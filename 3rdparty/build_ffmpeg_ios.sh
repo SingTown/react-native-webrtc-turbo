@@ -25,12 +25,14 @@ for i in "${!SDKS[@]}"; do
     (
         mkdir -p $FFMPEG_DIR
         cd $FFMPEG_DIR
+        export PKG_CONFIG_PATH="$OPUS_DIR/install/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
         ../../../../repo/ffmpeg/configure \
             --sysroot="$(xcrun --sdk $SDK --show-sdk-path)" \
             --enable-cross-compile --arch=$ARCH \
             --prefix=$FFMPEG_DIR/install \
             --cc="clang -arch $ARCH" \
             --cxx="clang++ -arch $ARCH" \
+            --pkg-config-flags="--static" \
             --extra-cflags="$FLAG -I$OPUS_DIR/install/include" \
             --extra-ldflags="$FLAG -L$OPUS_DIR/install/lib" \
             --disable-everything \
