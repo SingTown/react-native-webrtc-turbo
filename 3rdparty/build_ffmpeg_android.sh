@@ -40,7 +40,7 @@ for i in "${!ARCHS[@]}"; do
             --strip=$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip \
             --pkg-config-flags="--static" \
             --extra-cflags="-I$OPUS_DIR/install/include" \
-            --extra-ldflags="-L$OPUS_DIR/install/lib -lopus" \
+            --extra-ldflags="-L$OPUS_DIR/install/lib" \
             --prefix=$FFMPEG_DIR/install \
             --disable-everything \
             --enable-shared --disable-static \

@@ -1,11 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 TOP_DIR="$(cd "$(dirname "$0")" && pwd)"
-OPUS_DIR="build/opus/unittest"
-FFMPEG_DIR="build/ffmpeg/unittest"
-OUTPUT_DIR="output/unittest/ffmpeg"
+OPUS_DIR="${TOP_DIR}/build/opus/unittest"
+FFMPEG_DIR="${TOP_DIR}/build/ffmpeg/unittest"
+OUTPUT_DIR="${TOP_DIR}/output/unittest/ffmpeg"
 
-cmake -B $OPUS_DIR -G Xcode \
+cmake -B $OPUS_DIR \
     -DCMAKE_INSTALL_PREFIX=$OPUS_DIR/install \
     -DCMAKE_BUILD_TYPE=Release \
     repo/opus
@@ -14,8 +14,10 @@ cmake --build $OPUS_DIR --config Release --target install
 (
     mkdir -p $FFMPEG_DIR
     cd $FFMPEG_DIR
+    export PKG_CONFIG_PATH="$OPUS_DIR/install/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
     ../../../repo/ffmpeg/configure \
         --prefix=install \
+        --pkg-config-flags="--static" \
         --extra-cflags="-I$OPUS_DIR/install/include" \
         --extra-ldflags="-L$OPUS_DIR/install/lib" \
         --disable-everything \
