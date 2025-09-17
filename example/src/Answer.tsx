@@ -127,7 +127,10 @@ export default function App() {
                   });
                   // setStream(localStream);
                   stream?.getTracks().forEach((track) => {
-                    pc.addTransceiver(track, { direction: 'sendonly' });
+                    pc.addTransceiver(track, {
+                      direction: 'sendonly',
+                      streams: [stream],
+                    });
                   });
                   const answer = await pc.createAnswer();
                   setLocalDescription(answer.sdp || '');

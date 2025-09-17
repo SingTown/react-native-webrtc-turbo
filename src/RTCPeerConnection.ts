@@ -59,8 +59,7 @@ export class RTCPeerConnection {
       if (obj.pc !== this.pc || !this.ontrack) {
         return;
       }
-      const index = parseInt(obj.mid, 10);
-      const transceiver = this.transceivers[index];
+      const transceiver = this.transceivers.find((t) => t.mid === obj.mid);
       if (!transceiver) {
         return;
       }
@@ -126,7 +125,8 @@ export class RTCPeerConnection {
     trackOrKind: MediaStreamTrack | 'audio' | 'video',
     init?: RTCRtpTransceiverInit
   ) {
-    const transceiver = new RTCRtpTransceiver(trackOrKind, init);
+    const mid = `${this.transceivers.length}`;
+    const transceiver = new RTCRtpTransceiver(trackOrKind, mid, init);
     this.transceivers.push(transceiver);
     return transceiver;
   }

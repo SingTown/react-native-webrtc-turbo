@@ -31,6 +31,7 @@ export class RTCRtpSender {
 
 export class RTCRtpTransceiver {
   id: string | null = null;
+  mid: string;
   currentDirection: RTCRtpTransceiverDirection | null = null;
   direction: RTCRtpTransceiverDirection;
   kind: 'audio' | 'video';
@@ -40,10 +41,12 @@ export class RTCRtpTransceiver {
 
   constructor(
     trackOrKind: MediaStreamTrack | 'audio' | 'video',
+    mid: string,
     init?: RTCRtpTransceiverInit
   ) {
     this.direction = init?.direction || 'sendrecv';
     this.streams = init?.streams || [];
+    this.mid = mid;
     let sendTrack: MediaStreamTrack | null = null;
     let recvTrack: MediaStreamTrack | null = null;
     if (trackOrKind instanceof MediaStreamTrack) {
