@@ -2,8 +2,8 @@ import type { EventSubscription } from 'react-native';
 import NativeDatachannel from './NativeDatachannel';
 import { RTCRtpTransceiver } from './RTCRtpTransceiver';
 import type { RTCRtpTransceiverInit } from './RTCRtpTransceiver';
-import { RTCTrackEvent } from './RTCTrackEvent';
-import type { MediaStreamTrack } from './MediaStreamTrack';
+import { MediaStreamTrack } from './MediaStreamTrack';
+import { MediaStream } from './MediaStream';
 
 export interface RTCIceServer {
   credential?: string;
@@ -21,15 +21,23 @@ export interface RTCSessionDescriptionInit {
   type: RTCSdpType;
 }
 
+export type RTCTrackEvent = {
+  track: MediaStreamTrack;
+  streams: MediaStream[];
+};
+
 interface RTCIceCandidateInit {
   candidate?: string;
   sdpMid?: string | null;
 }
 
 export class RTCPeerConnection {
-  private pc: string;
+  public pc: string;
   private transceivers: RTCRtpTransceiver[] = [];
   private onLocalCandidateCallback: EventSubscription;
+  private onTrackCallback: EventSubscription;
+
+  private streams: Map<string, MediaStream> = new Map();
 
   public onicecandidate: ((candidate: string) => void) | null = null;
   public ontrack: ((event: RTCTrackEvent) => void) | null = null;
@@ -47,6 +55,35 @@ export class RTCPeerConnection {
         this.onicecandidate(obj.candidate);
       }
     );
+    this.onTrackCallback = NativeDatachannel.onTrack((obj) => {
+      if (obj.pc !== this.pc || !this.ontrack) {
+        return;
+      }
+      const index = parseInt(obj.mid, 10);
+      const transceiver = this.transceivers[index];
+      if (!transceiver) {
+        return;
+      }
+      const track = transceiver.receiver.track;
+      if (!track) {
+        return;
+      }
+      track.id = obj.trackId;
+      for (const msid of obj.streamIds) {
+        let stream = this.streams.get(msid);
+        if (!stream) {
+          stream = new MediaStream(msid);
+          this.streams.set(msid, stream);
+        }
+        stream.addTrack(track);
+        transceiver.streams.push(stream);
+      }
+
+      this.ontrack({
+        track: track,
+        streams: transceiver.streams,
+      });
+    });
   }
 
   private convertIceServersToUrls(iceServers: RTCIceServer[]): string[] {
@@ -80,6 +117,8 @@ export class RTCPeerConnection {
 
   close() {
     this.onLocalCandidateCallback.remove();
+    this.onTrackCallback.remove();
+    this.streams.clear();
     NativeDatachannel.closePeerConnection(this.pc);
   }
 
@@ -88,9 +127,6 @@ export class RTCPeerConnection {
     init?: RTCRtpTransceiverInit
   ) {
     const transceiver = new RTCRtpTransceiver(trackOrKind, init);
-    if (this.ontrack && transceiver.receiver.track) {
-      this.ontrack(new RTCTrackEvent(transceiver));
-    }
     this.transceivers.push(transceiver);
     return transceiver;
   }
@@ -103,16 +139,19 @@ export class RTCPeerConnection {
     for (let i = 0; i < this.transceivers.length; i++) {
       const t = this.transceivers[i];
       if (!t) continue;
-      const sendms = t?.sender.track?.id || '';
-      const recvms = t?.receiver.track?.id || '';
+      const sendms = t?.sender.track?._sourceId || '';
+      const recvms = t?.receiver.track?._sourceId || '';
       if (!t.id) {
+        const msids = t.streams.map((s) => s.msid);
         const id = NativeDatachannel.createRTCRtpTransceiver(
           this.pc,
           i,
           t.kind,
           t.direction,
           sendms,
-          recvms
+          recvms,
+          msids,
+          t.sender.track?.id || null
         );
         t.id = id;
       }

@@ -8,11 +8,11 @@ export type LocalCandidate = {
   mid: string;
 };
 
-export type NativeTransceiver = {
-  kind: string;
-  direction: string;
-  sendms: string;
-  recvms: string;
+export type TrackEvent = {
+  pc: string;
+  mid: string;
+  trackId: string;
+  streamIds: string[];
 };
 
 export interface Spec extends TurboModule {
@@ -28,7 +28,9 @@ export interface Spec extends TurboModule {
     kind: string,
     direction: string,
     sendms: string,
-    recvms: string
+    recvms: string,
+    msids: string[],
+    trackid: string | null
   ): string;
   stopRTCTransceiver(id: string): void;
 
@@ -44,6 +46,7 @@ export interface Spec extends TurboModule {
   addRemoteCandidate(pc: string, candidate: string, mid: string): void;
 
   onLocalCandidate: EventEmitter<LocalCandidate>;
+  onTrack: EventEmitter<TrackEvent>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('NativeDatachannel');

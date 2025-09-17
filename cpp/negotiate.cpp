@@ -2,11 +2,22 @@
 #include <numeric>
 
 std::optional<rtc::Description::Media>
-getMedia(const rtc::Description &description, int index) {
+getMediaFromIndex(const rtc::Description &description, int index) {
 	auto mediaVar = description.media(index);
 	if (!std::holds_alternative<const rtc::Description::Media *>(mediaVar))
 		return std::nullopt;
 	return *std::get<const rtc::Description::Media *>(mediaVar);
+}
+
+std::optional<rtc::Description::Media>
+getMediaFromMid(const rtc::Description &description, const std::string &mid) {
+	for (int i = 0; i < description.mediaCount(); i++) {
+		auto media = getMediaFromIndex(description, i);
+		if (media && media->mid() == mid) {
+			return media;
+		}
+	}
+	return std::nullopt;
 }
 
 std::string extractFmtpStringValue(const std::string &fmtp,
@@ -183,19 +194,32 @@ void addSupportedAudio(rtc::Description::Audio &media) {
 	media.addOpusCodec(111);
 }
 
-rtc::Description::Media getSupportedMedia(const std::string &mid,
-                                          rtc::Description::Direction dir,
-                                          const std::string &kind) {
+void addSSRC(rtc::Description::Media &media,
+             const std::vector<std::string> &msids,
+             const std::optional<std::string> &trackid) {
 	uint32_t ssrc = random() % UINT32_MAX;
+	if (msids.empty()) {
+		media.addSSRC(ssrc, std::nullopt);
+	}
+	for (const auto &msid : msids) {
+		media.addSSRC(ssrc, std::nullopt, msid, trackid);
+	}
+}
+
+rtc::Description::Media
+getSupportedMedia(const std::string &mid, rtc::Description::Direction dir,
+                  const std::string &kind,
+                  const std::vector<std::string> &msids,
+                  const std::optional<std::string> &trackid) {
 	if (kind == "video") {
 		rtc::Description::Video media(mid, dir);
 		addSupportedVideo(media);
-		media.addSSRC(ssrc, media.mid());
+		addSSRC(media, msids, trackid);
 		return media;
 	} else if (kind == "audio") {
 		rtc::Description::Audio media(mid, dir);
 		addSupportedAudio(media);
-		media.addSSRC(ssrc, media.mid());
+		addSSRC(media, msids, trackid);
 		return media;
 	} else {
 		throw std::invalid_argument("Unsupported media type: " + kind);
@@ -205,14 +229,15 @@ rtc::Description::Media getSupportedMedia(const std::string &mid,
 std::optional<rtc::Description::Media>
 negotiateAnswerMedia(const rtc::Description &offer, int index,
                      rtc::Description::Direction direction,
-                     const std::string &kind) {
-	auto offerMedia = getMedia(offer, index);
+                     const std::string &kind,
+                     const std::vector<std::string> &msids,
+                     const std::optional<std::string> &trackid) {
+	auto offerMedia = getMediaFromIndex(offer, index);
 	if (!offerMedia)
 		return std::nullopt;
 
-	auto supportedMedia = getSupportedMedia(offerMedia->mid(), direction, kind);
-
-	uint32_t ssrc = random() % UINT32_MAX;
+	auto supportedMedia =
+	    getSupportedMedia(offerMedia->mid(), direction, kind, msids, trackid);
 
 	if (kind == "video") {
 		rtc::Description::Video result(offerMedia->mid(), direction);
@@ -239,7 +264,7 @@ negotiateAnswerMedia(const rtc::Description &offer, int index,
 				}
 			}
 		}
-		result.addSSRC(ssrc, offerMedia->mid());
+		addSSRC(result, msids, trackid);
 		return result;
 	} else if (kind == "audio") {
 		rtc::Description::Audio result(offerMedia->mid(), direction);
@@ -265,14 +290,14 @@ negotiateAnswerMedia(const rtc::Description &offer, int index,
 				}
 			}
 		}
-		result.addSSRC(ssrc, offerMedia->mid());
+		addSSRC(result, msids, trackid);
 		return result;
 	} else {
 		throw std::invalid_argument("Unsupported media type: " + kind);
 	}
 }
 
-rtc::Description::Media::RtpMap
+std::optional<rtc::Description::Media::RtpMap>
 negotiateRtpMap(const rtc::Description &remoteDesc,
                 const rtc::Description &localDesc, const std::string &mid) {
 
@@ -282,29 +307,17 @@ negotiateRtpMap(const rtc::Description &remoteDesc,
 	                  ? localDesc
 	                  : remoteDesc;
 
-	for (int i = 0; i < offer.mediaCount(); i++) {
-		auto offerMedia = getMedia(offer, i);
-		if (!offerMedia)
-			continue;
-		if (offerMedia->mid() != mid)
-			continue;
+	auto offerMedia = getMediaFromMid(offer, mid);
+	auto answerMedia = getMediaFromMid(answer, mid);
+	if (!offerMedia || !answerMedia) {
+		return std::nullopt;
+	}
 
-		for (auto offerPt : offerMedia->payloadTypes()) {
-
-			for (int j = 0; j < answer.mediaCount(); j++) {
-				auto answerMedia = getMedia(answer, j);
-				if (!answerMedia)
-					continue;
-
-				if (answerMedia->mid() != mid)
-					continue;
-
-				if (answerMedia->hasPayloadType(offerPt)) {
-					return *offerMedia->rtpMap(offerPt);
-				}
-			}
+	for (auto offerPt : offerMedia->payloadTypes()) {
+		if (answerMedia->hasPayloadType(offerPt)) {
+			return *offerMedia->rtpMap(offerPt);
 		}
 	}
 
-	throw std::runtime_error("No matching codec found for negotiation");
+	return std::nullopt;
 }

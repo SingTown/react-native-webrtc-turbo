@@ -19,11 +19,12 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	                                   const std::string &kind);
 	void stopMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
 
-	std::string createRTCRtpTransceiver(jsi::Runtime &rt, const std::string &pc,
-	                                    int index, const std::string &kind,
-	                                    rtc::Description::Direction direction,
-	                                    const std::string &sendms,
-	                                    const std::string &recvms);
+	std::string createRTCRtpTransceiver(
+	    jsi::Runtime &rt, const std::string &pc, int index,
+	    const std::string &kind, rtc::Description::Direction direction,
+	    const std::string &sendms, const std::string &recvms,
+	    const std::vector<std::string> &msids,
+	    const std::optional<std::string> &trackid);
 	void stopRTCTransceiver(jsi::Runtime &rt, const std::string &tr);
 
 	std::string createOffer(jsi::Runtime &rt, const std::string &pc);

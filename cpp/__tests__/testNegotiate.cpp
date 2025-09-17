@@ -61,8 +61,8 @@ TEST(NegotiateTest, getFmtpsString) {
 }
 
 TEST(NegotiateTest, getSupportedVideo) {
-	auto media =
-	    getSupportedMedia("0", rtc::Description::Direction::SendRecv, "video");
+	auto media = getSupportedMedia("0", rtc::Description::Direction::SendRecv,
+	                               "video", {}, std::nullopt);
 	auto sdp = media.generateSdp();
 	EXPECT_TRUE(sdp.find("m=video 9 UDP/TLS/RTP/SAVPF 104 96") !=
 	            std::string::npos);
@@ -73,8 +73,8 @@ TEST(NegotiateTest, getSupportedVideo) {
 }
 
 TEST(NegotiateTest, getSupportedAudio) {
-	auto media =
-	    getSupportedMedia("0", rtc::Description::Direction::SendRecv, "audio");
+	auto media = getSupportedMedia("0", rtc::Description::Direction::SendRecv,
+	                               "audio", {}, std::nullopt);
 	auto sdp = media.generateSdp();
 	EXPECT_TRUE(sdp.find("m=audio 9 UDP/TLS/RTP/SAVPF 111") !=
 	            std::string::npos);
@@ -98,8 +98,9 @@ TEST(NegotiateTest, answerH264) {
 	                            "a=fmtp:109 level-asymmetry-allowed=1;"
 	                            "packetization-mode=1;"
 	                            "profile-level-id=42e01f\r\n");
-	auto media = negotiateAnswerMedia(
-	    remoteDesc, 0, rtc::Description::Direction::SendOnly, "video");
+	auto media = negotiateAnswerMedia(remoteDesc, 0,
+	                                  rtc::Description::Direction::SendOnly,
+	                                  "video", {}, std::nullopt);
 
 	auto sdp = media->generateSdp();
 
@@ -128,8 +129,9 @@ TEST(NegotiateTest, answerH265) {
 	                            "a=fmtp:109 level-id=93;"
 	                            "profile-id=1;"
 	                            "tier-flag=0;tx-mode=SRST\r\n");
-	auto media = negotiateAnswerMedia(
-	    remoteDesc, 0, rtc::Description::Direction::SendOnly, "video");
+	auto media = negotiateAnswerMedia(remoteDesc, 0,
+	                                  rtc::Description::Direction::SendOnly,
+	                                  "video", {}, std::nullopt);
 
 	auto sdp = media->generateSdp();
 	EXPECT_TRUE(sdp.find("m=video 9 UDP/TLS/RTP/SAVPF 109") !=
@@ -162,8 +164,9 @@ TEST(NegotiateTest, answerH265H264) {
 	                            "a=fmtp:109 level-id=93;"
 	                            "profile-id=1;"
 	                            "tier-flag=0;tx-mode=SRST\r\n");
-	auto media = negotiateAnswerMedia(
-	    remoteDesc, 0, rtc::Description::Direction::SendOnly, "video");
+	auto media = negotiateAnswerMedia(remoteDesc, 0,
+	                                  rtc::Description::Direction::SendOnly,
+	                                  "video", {}, std::nullopt);
 	auto sdp = media->generateSdp();
 	EXPECT_TRUE(sdp.find("m=video 9 UDP/TLS/RTP/SAVPF 96 109") !=
 	            std::string::npos);
@@ -191,8 +194,9 @@ TEST(NegotiateTest, answerOpus) {
 	                            "a=rtcp-mux\r\n"
 	                            "a=rtpmap:111 opus/48000/2\r\n"
 	                            "a=fmtp:111\r\n");
-	auto media = negotiateAnswerMedia(
-	    remoteDesc, 0, rtc::Description::Direction::SendOnly, "audio");
+	auto media = negotiateAnswerMedia(remoteDesc, 0,
+	                                  rtc::Description::Direction::SendOnly,
+	                                  "audio", {}, std::nullopt);
 
 	auto sdp = media->generateSdp();
 	EXPECT_TRUE(sdp.find("m=audio 9 UDP/TLS/RTP/SAVPF 111") !=
@@ -236,9 +240,9 @@ TEST(NegotiateTest, negotiateRtpMap) {
 
 	auto rtpMap = negotiateRtpMap(remoteDesc, localDesc, "0");
 
-	EXPECT_EQ(rtpMap.payloadType, 109);
-	EXPECT_EQ(rtpMap.format, "H264");
-	EXPECT_EQ(rtpMap.clockRate, 90000);
+	EXPECT_EQ(rtpMap->payloadType, 109);
+	EXPECT_EQ(rtpMap->format, "H264");
+	EXPECT_EQ(rtpMap->clockRate, 90000);
 }
 
 TEST(NegotiateTest, negotiateRtpMapPriority) {
@@ -270,7 +274,7 @@ TEST(NegotiateTest, negotiateRtpMapPriority) {
 
 	auto rtpMap = negotiateRtpMap(remoteDesc, localDesc, "0");
 
-	EXPECT_EQ(rtpMap.payloadType, 109);
-	EXPECT_EQ(rtpMap.format, "H265");
-	EXPECT_EQ(rtpMap.clockRate, 90000);
+	EXPECT_EQ(rtpMap->payloadType, 109);
+	EXPECT_EQ(rtpMap->format, "H265");
+	EXPECT_EQ(rtpMap->clockRate, 90000);
 }

@@ -3,8 +3,10 @@
 #include "RTCRtpReceiver.h"
 #include "guid.h"
 #include "log.h"
+#include "negotiate.h"
 #include <iostream>
 #include <mutex>
+#include <regex>
 #include <rtc/rtc.hpp>
 #include <string>
 
@@ -93,10 +95,13 @@ NativeDatachannel::createMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt,
 std::string NativeDatachannel::createRTCRtpTransceiver(
     [[maybe_unused]] jsi::Runtime &rt, const std::string &pc, int index,
     const std::string &kind, rtc::Description::Direction direction,
-    const std::string &sendms, const std::string &recvms) {
+    const std::string &sendms, const std::string &recvms,
+    const std::vector<std::string> &msids,
+    const std::optional<std::string> &trackid) {
+
 	auto peerConnection = getPeerConnection(pc);
-	auto track =
-	    addTransceiver(peerConnection, index, kind, direction, sendms, recvms);
+	auto track = addTransceiver(peerConnection, index, kind, direction, sendms,
+	                            recvms, msids, trackid);
 
 	return emplaceTrack(track);
 }
@@ -167,6 +172,30 @@ void NativeDatachannel::setRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
 	auto peerConnection = getPeerConnection(pc);
 	rtc::Description description(sdp);
 	peerConnection->setRemoteDescription(description);
+	for (int i = 0; i < description.mediaCount(); i++) {
+		auto media = getMediaFromIndex(description, i);
+		if (!media) {
+			continue;
+		}
+		if (media->direction() == rtc::Description::Direction::Inactive ||
+		    media->direction() == rtc::Description::Direction::RecvOnly) {
+			continue;
+		}
+		TrackEvent result;
+		result.pc = pc;
+		result.mid = media->mid();
+		result.trackId = "";
+		result.streamIds = {};
+		for (std::string &attr : media->attributes()) {
+			std::regex re(R"(msid:([^\s]+)\s+([^\s]+))");
+			std::smatch match;
+			if (std::regex_match(attr, match, re) && match.size() == 3) {
+				result.trackId = match[2];
+				result.streamIds.push_back(match[1]);
+			}
+		}
+		emitOnTrack(result);
+	}
 }
 
 void NativeDatachannel::addRemoteCandidate([[maybe_unused]] jsi::Runtime &rt,

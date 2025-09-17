@@ -15,19 +15,21 @@
 class MediaStreamTrack {
   protected:
 	std::recursive_mutex mutex;
+	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
 
   public:
 	MediaStreamTrack() = default;
+	virtual ~MediaStreamTrack() { onPushCallback = nullptr; }
 	virtual std::string type() = 0;
 	virtual void push(std::shared_ptr<AVFrame> frame) = 0;
-	virtual std::shared_ptr<AVFrame> pop() = 0;
-	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
+	virtual std::shared_ptr<AVFrame> popVideo(AVPixelFormat format) = 0;
+	virtual std::shared_ptr<AVFrame> popAudio(AVSampleFormat format,
+	                                          int sampleRate, int channels) = 0;
 
 	void onPush(std::function<void(std::shared_ptr<AVFrame>)> callback) {
 		std::lock_guard lock(mutex);
 		onPushCallback = callback;
 	}
-	virtual ~MediaStreamTrack() { onPushCallback = nullptr; }
 };
 
 struct ComparePTS {
@@ -47,6 +49,7 @@ class VideoStreamTrack : public MediaStreamTrack {
 
   public:
 	std::string type() override { return "video"; }
+
 	void push(std::shared_ptr<AVFrame> frame) override {
 		std::function<void(std::shared_ptr<AVFrame>)> callbackCopy;
 		{
@@ -66,12 +69,7 @@ class VideoStreamTrack : public MediaStreamTrack {
 		}
 	}
 
-	void pushVideo(std::shared_ptr<AVFrame> frame, AVPixelFormat format,
-	               int width, int height) {
-		push(scalerIn.scale(frame, format, width, height));
-	}
-
-	std::shared_ptr<AVFrame> pop() override {
+	std::shared_ptr<AVFrame> pop() {
 		std::lock_guard lock(mutex);
 		if (queue.empty()) {
 			return nullptr;
@@ -81,12 +79,18 @@ class VideoStreamTrack : public MediaStreamTrack {
 		return frame;
 	}
 
-	std::shared_ptr<AVFrame> popVideo(AVPixelFormat format) {
+	std::shared_ptr<AVFrame> popVideo(AVPixelFormat format) override {
 		auto frame = pop();
 		if (!frame) {
 			return nullptr;
 		}
 		return scalerOut.scale(frame, format, frame->width, frame->height);
+	}
+
+	std::shared_ptr<AVFrame> popAudio([[maybe_unused]] AVSampleFormat format,
+	                                  [[maybe_unused]] int sampleRate,
+	                                  [[maybe_unused]] int channels) override {
+		throw std::runtime_error("Media type is video");
 	}
 };
 
@@ -132,12 +136,8 @@ class AudioStreamTrack : public MediaStreamTrack {
 		}
 	}
 
-	std::shared_ptr<AVFrame> pop() override {
-		return popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
-	}
-
 	std::shared_ptr<AVFrame> popAudio(AVSampleFormat format, int sampleRate,
-	                                  int channels) {
+	                                  int channels) override {
 		std::lock_guard lock(mutex);
 		if (pcm.size() < FRAME_SIZE * CHANNELS) {
 			return nullptr;
@@ -154,6 +154,11 @@ class AudioStreamTrack : public MediaStreamTrack {
 		} else {
 			return frame;
 		}
+	}
+
+	std::shared_ptr<AVFrame>
+	popVideo([[maybe_unused]] AVPixelFormat format) override {
+		throw std::runtime_error("Media type is audio");
 	}
 };
 

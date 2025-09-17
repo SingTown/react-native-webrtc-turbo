@@ -1,7 +1,12 @@
 import { MediaStreamTrack } from './MediaStreamTrack';
 
 export class MediaStream {
+  public msid: string;
   private tracks: MediaStreamTrack[] = [];
+
+  constructor(msid: string) {
+    this.msid = msid;
+  }
 
   getTracks(): MediaStreamTrack[] {
     return this.tracks;

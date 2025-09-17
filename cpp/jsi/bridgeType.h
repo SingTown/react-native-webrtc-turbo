@@ -5,6 +5,14 @@
 
 namespace facebook::react {
 
+struct TrackEvent {
+  public:
+	std::string pc;
+	std::string mid;
+	std::string trackId;
+	std::vector<std::string> streamIds;
+};
+
 using LocalCandidate =
     NativeDatachannelLocalCandidate<std::string, std::string, std::string>;
 template <>
@@ -42,6 +50,45 @@ template <> struct Bridging<rtc::Description::Direction> {
 			if (direction == rtc::Description::Direction::Inactive)
 				return bridging::toJs(rt, "inactive");
 			throw std::invalid_argument("Invalid direction");
+		} catch (const std::logic_error &e) {
+			throw jsi::JSError(rt, e.what());
+		}
+	}
+};
+
+template <> struct Bridging<TrackEvent> {
+	static TrackEvent fromJs(jsi::Runtime &rt, const jsi::Object &value) {
+		try {
+			TrackEvent event;
+			event.pc = value.getProperty(rt, "pc").asString(rt).utf8(rt);
+			event.mid = value.getProperty(rt, "mid").asString(rt).utf8(rt);
+			event.trackId =
+			    value.getProperty(rt, "trackId").asString(rt).utf8(rt);
+			auto streamIds =
+			    value.getProperty(rt, "streamIds").asObject(rt).asArray(rt);
+			for (size_t i = 0; i < streamIds.length(rt); ++i) {
+				std::string streamId =
+				    streamIds.getValueAtIndex(rt, i).asString(rt).utf8(rt);
+				event.streamIds.push_back(streamId);
+			}
+			return event;
+		} catch (const std::logic_error &e) {
+			throw jsi::JSError(rt, e.what());
+		}
+	}
+
+	static jsi::Object toJs(jsi::Runtime &rt, const TrackEvent &event) {
+		try {
+			jsi::Object obj(rt);
+			obj.setProperty(rt, "pc", event.pc);
+			obj.setProperty(rt, "mid", event.mid);
+			obj.setProperty(rt, "trackId", event.trackId);
+			jsi::Array arr = jsi::Array(rt, event.streamIds.size());
+			for (size_t i = 0; i < event.streamIds.size(); ++i) {
+				arr.setValueAtIndex(rt, i, event.streamIds[i]);
+			}
+			obj.setProperty(rt, "streamIds", arr);
+			return obj;
 		} catch (const std::logic_error &e) {
 			throw jsi::JSError(rt, e.what());
 		}

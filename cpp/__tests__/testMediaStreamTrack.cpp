@@ -7,9 +7,9 @@ TEST(MediaStreamTrackTest, testVideo) {
 	auto track = std::make_shared<VideoStreamTrack>();
 	track->push(frame1);
 	track->push(frame2);
-	EXPECT_EQ(track->pop()->pts, 1);
-	EXPECT_EQ(track->pop()->pts, 2);
-	EXPECT_EQ(track->pop(), nullptr);
+	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 1);
+	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 2);
+	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12), nullptr);
 }
 
 TEST(MediaStreamTrackTest, testVideoPts) {
@@ -18,9 +18,9 @@ TEST(MediaStreamTrackTest, testVideoPts) {
 	auto track = std::make_shared<VideoStreamTrack>();
 	track->push(frame2);
 	track->push(frame1);
-	EXPECT_EQ(track->pop()->pts, 1);
-	EXPECT_EQ(track->pop()->pts, 2);
-	EXPECT_EQ(track->pop(), nullptr);
+	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 1);
+	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 2);
+	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12), nullptr);
 }
 
 TEST(MediaStreamTrackTest, testAudioMono) {
@@ -43,7 +43,7 @@ TEST(MediaStreamTrackTest, testAudioMono) {
 	for (int i = 0; i < 960; ++i) {
 		EXPECT_NEAR(inData[i], outData[i], 0.001);
 	}
-	EXPECT_EQ(track->pop(), nullptr);
+	EXPECT_EQ(track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 1), nullptr);
 }
 
 TEST(MediaStreamTrackTest, testAudioStereo) {
@@ -67,7 +67,7 @@ TEST(MediaStreamTrackTest, testAudioStereo) {
 		EXPECT_NEAR(outData[i * 2], inData[i] * 0.7071, 0.001);
 		EXPECT_NEAR(outData[i * 2 + 1], inData[i] * 0.7071, 0.001);
 	}
-	EXPECT_EQ(track->pop(), nullptr);
+	EXPECT_EQ(track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2), nullptr);
 }
 
 TEST(MediaStreamTrackTest, testAudioMulti) {
@@ -102,5 +102,5 @@ TEST(MediaStreamTrackTest, testAudioMulti) {
 	for (int i = 0; i < 160; ++i) {
 		EXPECT_NEAR(inData2[i], outData[i + 800], 0.001);
 	}
-	EXPECT_EQ(track->pop(), nullptr);
+	EXPECT_EQ(track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 1), nullptr);
 }

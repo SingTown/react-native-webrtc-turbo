@@ -265,10 +265,14 @@ class Encoder {
 				    0) {
 					throw std::runtime_error("Could not copy channel layout");
 				}
+			} else {
+				throw std::runtime_error("Unsupported encoder" +
+				                         std::to_string(encoder->id));
 			}
 			ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
 			if (avcodec_open2(ctx, encoder, NULL) < 0)
-				throw std::runtime_error("Could not open codec");
+				throw std::runtime_error("Could not open codec" +
+				                         std::string(encoder->name));
 		}
 
 		int ret = avcodec_send_frame(ctx, frame.get());

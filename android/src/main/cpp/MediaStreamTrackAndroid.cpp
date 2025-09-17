@@ -81,8 +81,8 @@ Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
 JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
     JNIEnv *env, jobject, jstring id, jobject image) {
 
-	auto audioStreamTrack = getAudioStreamTrackJni(env, id);
-	if (!audioStreamTrack) {
+	auto videoStreamTrack = getVideoStreamTrackJni(env, id);
+	if (!videoStreamTrack) {
 		return;
 	}
 
@@ -162,7 +162,7 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	env->DeleteLocalRef(imageClass);
 	env->DeleteLocalRef(planeClass);
 
-	audioStreamTrack->push(frame);
+	videoStreamTrack->push(frame);
 }
 
 JNIEXPORT jbyteArray JNICALL

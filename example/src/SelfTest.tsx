@@ -96,7 +96,10 @@ export default function SelfTest() {
       });
 
       localStream.getTracks().forEach((track) => {
-        peerconnection2!.addTransceiver(track, { direction: 'sendonly' });
+        peerconnection2!.addTransceiver(track, {
+          direction: 'sendonly',
+          streams: [localStream!],
+        });
       });
 
       const answer = await peerconnection2.createAnswer();

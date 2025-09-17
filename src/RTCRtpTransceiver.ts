@@ -1,4 +1,5 @@
 import { MediaStreamTrack } from './MediaStreamTrack';
+import { MediaStream } from './MediaStream';
 import NativeDatachannel from './NativeDatachannel';
 export type RTCRtpTransceiverDirection =
   | 'inactive'
@@ -9,6 +10,7 @@ export type RTCRtpTransceiverDirection =
 
 export interface RTCRtpTransceiverInit {
   direction?: RTCRtpTransceiverDirection;
+  streams?: MediaStream[];
 }
 
 export class RTCRtpReceiver {
@@ -32,6 +34,7 @@ export class RTCRtpTransceiver {
   currentDirection: RTCRtpTransceiverDirection | null = null;
   direction: RTCRtpTransceiverDirection;
   kind: 'audio' | 'video';
+  streams: MediaStream[];
   readonly receiver: RTCRtpReceiver;
   readonly sender: RTCRtpSender;
 
@@ -40,6 +43,7 @@ export class RTCRtpTransceiver {
     init?: RTCRtpTransceiverInit
   ) {
     this.direction = init?.direction || 'sendrecv';
+    this.streams = init?.streams || [];
     let sendTrack: MediaStreamTrack | null = null;
     let recvTrack: MediaStreamTrack | null = null;
     if (trackOrKind instanceof MediaStreamTrack) {
@@ -65,5 +69,6 @@ export class RTCRtpTransceiver {
 
   stop() {
     this.id && NativeDatachannel.stopRTCTransceiver(this.id);
+    this.streams = [];
   }
 }
