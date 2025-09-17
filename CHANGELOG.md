@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.0 (2025-09-17)
+
+* fix: add mid in RTCRtpTransceiver ([1c11758](https://github.com/SingTown/react-native-webrtc-turbo/commit/1c11758))
+* fix: android build ([66c5c08](https://github.com/SingTown/react-native-webrtc-turbo/commit/66c5c08))
+* fix: build libopus ([6468c61](https://github.com/SingTown/react-native-webrtc-turbo/commit/6468c61))
+* fix: resample crash ([1af5c5a](https://github.com/SingTown/react-native-webrtc-turbo/commit/1af5c5a))
+* fix: unittest cicd ([1c95cba](https://github.com/SingTown/react-native-webrtc-turbo/commit/1c95cba))
+* feat: add audio stream track ([8759321](https://github.com/SingTown/react-native-webrtc-turbo/commit/8759321))
+* feat: add microphone and speaker ([639fd8d](https://github.com/SingTown/react-native-webrtc-turbo/commit/639fd8d))
+* feat: add opus 3rdparty ([c9c78b7](https://github.com/SingTown/react-native-webrtc-turbo/commit/c9c78b7))
+* feat: dispose datachannel ([189acc3](https://github.com/SingTown/react-native-webrtc-turbo/commit/189acc3))
+* feat: enable opus in receiver ([c8a145c](https://github.com/SingTown/react-native-webrtc-turbo/commit/c8a145c))
+* feat: negotiate opus ([c9adf70](https://github.com/SingTown/react-native-webrtc-turbo/commit/c9adf70))
+* feat: ontrack with msid ([7527247](https://github.com/SingTown/react-native-webrtc-turbo/commit/7527247))
+* chore: fix warnings ([cb33e9d](https://github.com/SingTown/react-native-webrtc-turbo/commit/cb33e9d))
+
 ## 0.6.0 (2025-09-08)
 
 * chore: add Podfile.lock before release ([aa7e01d](https://github.com/SingTown/react-native-webrtc-turbo/commit/aa7e01d))
