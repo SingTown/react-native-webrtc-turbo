@@ -3,18 +3,10 @@
 #include "negotiate.h"
 #include <set>
 
-void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
+void SenderOnOpen(std::shared_ptr<rtc::Track> track,
                   std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
-                  std::shared_ptr<rtc::Track> track) {
+                  rtc::Description::Media::RtpMap rtpMap) {
 	const size_t mtu = 1200;
-
-	auto rtpMap = negotiateRtpMap(peerConnection->remoteDescription().value(),
-	                              peerConnection->localDescription().value(),
-	                              track->mid());
-	if (!rtpMap) {
-		return;
-	}
-
 	auto ssrcs = track->description().getSSRCs();
 	if (ssrcs.size() != 1) {
 		throw std::runtime_error("Expected exactly one SSRC");
@@ -23,31 +15,31 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
-	if (rtpMap->format == "H265") {
+	if (rtpMap.format == "H265") {
 		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
-		    ssrc, track->mid(), rtpMap->payloadType,
+		    ssrc, track->mid(), rtpMap.payloadType,
 		    rtc::H265RtpPacketizer::ClockRate);
 		auto packetizer =
 		    std::make_shared<rtc::H265RtpPacketizer>(separator, rtpConfig, mtu);
-		track->setMediaHandler(packetizer);
+		track->chainMediaHandler(packetizer);
 		avCodecId = AV_CODEC_ID_H265;
-	} else if (rtpMap->format == "H264") {
+	} else if (rtpMap.format == "H264") {
 		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
-		    ssrc, track->mid(), rtpMap->payloadType,
+		    ssrc, track->mid(), rtpMap.payloadType,
 		    rtc::H264RtpPacketizer::ClockRate);
 		auto packetizer =
 		    std::make_shared<rtc::H264RtpPacketizer>(separator, rtpConfig, mtu);
-		track->setMediaHandler(packetizer);
+		track->chainMediaHandler(packetizer);
 		avCodecId = AV_CODEC_ID_H264;
-	} else if (rtpMap->format == "opus") {
+	} else if (rtpMap.format == "opus") {
 		auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
-		    ssrc, track->mid(), rtpMap->payloadType,
+		    ssrc, track->mid(), rtpMap.payloadType,
 		    rtc::OpusRtpPacketizer::DefaultClockRate);
 		auto packetizer = std::make_shared<rtc::OpusRtpPacketizer>(rtpConfig);
-		track->setMediaHandler(packetizer);
+		track->chainMediaHandler(packetizer);
 		avCodecId = AV_CODEC_ID_OPUS;
 	} else {
-		throw std::runtime_error("Unsupported codec: " + rtpMap->format);
+		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
 
 	auto encoder = std::make_shared<Encoder>(avCodecId);
@@ -56,9 +48,9 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 	     rtpMap]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
 		    while (1) {
 			    std::shared_ptr<AVFrame> frame;
-			    if (rtpMap->format == "H264" || rtpMap->format == "H265") {
+			    if (rtpMap.format == "H264" || rtpMap.format == "H265") {
 				    frame = mediaStreamTrack->popVideo(AV_PIX_FMT_NV12);
-			    } else if (rtpMap->format == "opus") {
+			    } else if (rtpMap.format == "opus") {
 				    frame =
 				        mediaStreamTrack->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
 			    }
@@ -67,9 +59,6 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 			    }
 			    auto packets = encoder->encode(frame);
 			    for (auto packet : packets) {
-				    // for (int i = 0; i < 20; i++) {
-				    //     printf(" %02x", packet->data[i]);
-				    // }
 				    if (track->isClosed()) {
 					    return;
 				    }
@@ -81,42 +70,33 @@ void SenderOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 }
 
 void SenderOnClose(
-    [[maybe_unused]] std::shared_ptr<rtc::PeerConnection> peerConnection,
-    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
-    [[maybe_unused]] std::shared_ptr<rtc::Track> track) {
+    [[maybe_unused]] std::shared_ptr<rtc::Track> track,
+    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack) {
 
 	mediaStreamTrack->onPush(nullptr);
 }
 
-void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
+void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
                     std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
-                    std::shared_ptr<rtc::Track> track) {
-
-	auto rtpMap = negotiateRtpMap(peerConnection->remoteDescription().value(),
-	                              peerConnection->localDescription().value(),
-	                              track->mid());
-
-	if (!rtpMap) {
-		return;
-	}
+                    rtc::Description::Media::RtpMap rtpMap) {
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
-	if (rtpMap->format == "H265") {
+	if (rtpMap.format == "H265") {
 		auto depacketizer =
 		    std::make_shared<rtc::H265RtpDepacketizer>(separator);
-		track->setMediaHandler(depacketizer);
+		track->chainMediaHandler(depacketizer);
 		avCodecId = AV_CODEC_ID_H265;
-	} else if (rtpMap->format == "H264") {
+	} else if (rtpMap.format == "H264") {
 		auto depacketizer =
 		    std::make_shared<rtc::H264RtpDepacketizer>(separator);
-		track->setMediaHandler(depacketizer);
+		track->chainMediaHandler(depacketizer);
 		avCodecId = AV_CODEC_ID_H264;
-	} else if (rtpMap->format == "opus") {
+	} else if (rtpMap.format == "opus") {
 		auto depacketizer = std::make_shared<rtc::OpusRtpDepacketizer>();
-		track->setMediaHandler(depacketizer);
+		track->chainMediaHandler(depacketizer);
 		avCodecId = AV_CODEC_ID_OPUS;
 	} else {
-		throw std::runtime_error("Unsupported codec: " + rtpMap->format);
+		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
 
 	auto decoder = std::make_shared<Decoder>(avCodecId);
@@ -141,9 +121,8 @@ void ReceiverOnOpen(std::shared_ptr<rtc::PeerConnection> peerConnection,
 }
 
 void ReceiverOnClose(
-    [[maybe_unused]] std::shared_ptr<rtc::PeerConnection> peerConnection,
-    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
-    [[maybe_unused]] std::shared_ptr<rtc::Track> track) {}
+    [[maybe_unused]] std::shared_ptr<rtc::Track> track,
+    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack) {}
 
 std::shared_ptr<rtc::Track>
 addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
@@ -171,23 +150,30 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 		track = peerConnection->addTrack(std::move(*media));
 	}
 
-	track->onClosed([peerConnection, track, sendStream, recvStream]() {
+	track->onClosed([track, sendStream, recvStream]() {
 		if (sendStream) {
-			SenderOnClose(peerConnection, sendStream, track);
+			SenderOnClose(track, sendStream);
 		}
 
 		if (recvStream) {
-			ReceiverOnClose(peerConnection, recvStream, track);
+			ReceiverOnClose(track, recvStream);
 		}
 	});
 
 	track->onOpen([peerConnection, track, sendStream, recvStream]() {
+		auto rtpMap = negotiateRtpMap(
+		    peerConnection->remoteDescription().value(),
+		    peerConnection->localDescription().value(), track->mid());
+		if (!rtpMap) {
+			return;
+		}
+
 		if (sendStream) {
-			SenderOnOpen(peerConnection, sendStream, track);
+			SenderOnOpen(track, sendStream, rtpMap.value());
 		}
 
 		if (recvStream) {
-			ReceiverOnOpen(peerConnection, recvStream, track);
+			ReceiverOnOpen(track, recvStream, rtpMap.value());
 		}
 	});
 	return track;

@@ -48,24 +48,21 @@ export class RTCRtpTransceiver {
     this.streams = init?.streams || [];
     this.mid = mid;
     let sendTrack: MediaStreamTrack | null = null;
-    let recvTrack: MediaStreamTrack | null = null;
     if (trackOrKind instanceof MediaStreamTrack) {
       this.kind = trackOrKind.kind;
-      if (this.direction === 'sendonly') {
+      if (this.direction.includes('send')) {
         sendTrack = trackOrKind;
-      } else if (this.direction === 'recvonly') {
-        recvTrack = trackOrKind;
       }
     } else {
       this.kind = trackOrKind;
       if (this.direction.includes('send')) {
         sendTrack = new MediaStreamTrack(this.kind);
       }
-      if (this.direction.includes('recv')) {
-        recvTrack = new MediaStreamTrack(this.kind);
-      }
     }
-
+    let recvTrack: MediaStreamTrack | null = null;
+    if (this.direction.includes('recv')) {
+      recvTrack = new MediaStreamTrack(this.kind);
+    }
     this.sender = new RTCRtpSender(sendTrack);
     this.receiver = new RTCRtpReceiver(recvTrack);
   }
