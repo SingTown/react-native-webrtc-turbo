@@ -26,20 +26,40 @@ export type RTCTrackEvent = {
   streams: MediaStream[];
 };
 
-interface RTCIceCandidateInit {
+export interface RTCIceCandidateInit {
   candidate?: string;
   sdpMid?: string | null;
 }
 
+export class RTCIceCandidate {
+  candidate: string;
+  sdpMid: string | null;
+
+  constructor(init: RTCIceCandidateInit) {
+    this.candidate = init.candidate || '';
+    this.sdpMid = init.sdpMid || null;
+  }
+}
+
+export type RTCPeerConnectionIceEvent = {
+  candidate: RTCIceCandidate | null;
+};
+
 export class RTCPeerConnection {
   public pc: string;
   private transceivers: RTCRtpTransceiver[] = [];
+  private onConnectionStateChangeCallback: EventSubscription;
+  private onIceGatheringStateChangeCallback: EventSubscription;
   private onLocalCandidateCallback: EventSubscription;
   private onTrackCallback: EventSubscription;
 
   private streams: Map<string, MediaStream> = new Map();
 
-  public onicecandidate: ((candidate: string) => void) | null = null;
+  public onconnectionstatechange: (() => void) | null = null;
+  public onicegatheringstatechange: (() => void) | null = null;
+  public onicecandidate:
+    | ((candidate: RTCPeerConnectionIceEvent) => void)
+    | null = null;
   public ontrack: ((event: RTCTrackEvent) => void) | null = null;
 
   constructor(configuration?: RTCConfiguration) {
@@ -47,12 +67,39 @@ export class RTCPeerConnection {
       configuration?.iceServers || []
     );
     this.pc = NativeDatachannel.createPeerConnection(servers);
+
+    this.onConnectionStateChangeCallback =
+      NativeDatachannel.onConnectionStateChange((obj) => {
+        if (obj.pc !== this.pc || !this.onconnectionstatechange) {
+          return;
+        }
+        this.onconnectionstatechange();
+      });
+
+    this.onIceGatheringStateChangeCallback =
+      NativeDatachannel.onGatheringStateChange((obj) => {
+        if (obj.pc !== this.pc || !this.onicegatheringstatechange) {
+          return;
+        }
+        this.onicegatheringstatechange();
+      });
+
     this.onLocalCandidateCallback = NativeDatachannel.onLocalCandidate(
       (obj) => {
         if (obj.pc !== this.pc || !this.onicecandidate) {
           return;
         }
-        this.onicecandidate(obj.candidate);
+        if (!obj.candidate) {
+          this.onicecandidate({ candidate: null });
+          return;
+        } else {
+          this.onicecandidate({
+            candidate: new RTCIceCandidate({
+              candidate: obj.candidate,
+              sdpMid: obj.mid,
+            }),
+          });
+        }
       }
     );
     this.onTrackCallback = NativeDatachannel.onTrack((obj) => {
@@ -115,10 +162,20 @@ export class RTCPeerConnection {
   }
 
   close() {
+    this.onConnectionStateChangeCallback.remove();
+    this.onIceGatheringStateChangeCallback.remove();
     this.onLocalCandidateCallback.remove();
     this.onTrackCallback.remove();
     this.streams.clear();
     NativeDatachannel.closePeerConnection(this.pc);
+  }
+
+  get connectionState(): string {
+    return NativeDatachannel.getPeerConnectionState(this.pc);
+  }
+
+  get iceGatheringState(): string {
+    return NativeDatachannel.getGatheringState(this.pc);
   }
 
   addTransceiver(

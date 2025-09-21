@@ -5,19 +5,33 @@
 
 namespace facebook::react {
 
-struct TrackEvent {
-  public:
-	std::string pc;
-	std::string mid;
-	std::string trackId;
-	std::vector<std::string> streamIds;
+using TrackEvent =
+    NativeDatachannelTrackEvent<std::string, std::string, std::string,
+                                std::vector<std::string>>;
+template <>
+struct Bridging<TrackEvent> : NativeDatachannelTrackEventBridging<TrackEvent> {
 };
 
-using LocalCandidate =
-    NativeDatachannelLocalCandidate<std::string, std::string, std::string>;
+using ConnectionStateChangeEvent =
+    NativeDatachannelConnectionStateChangeEvent<std::string,
+                                                rtc::PeerConnection::State>;
 template <>
-struct Bridging<LocalCandidate>
-    : NativeDatachannelLocalCandidateBridging<LocalCandidate> {};
+struct Bridging<ConnectionStateChangeEvent>
+    : NativeDatachannelConnectionStateChangeEventBridging<
+          ConnectionStateChangeEvent> {};
+
+using GatheringStateChangeEvent = NativeDatachannelGatheringStateChangeEvent<
+    std::string, rtc::PeerConnection::GatheringState>;
+template <>
+struct Bridging<GatheringStateChangeEvent>
+    : NativeDatachannelGatheringStateChangeEventBridging<
+          GatheringStateChangeEvent> {};
+
+using LocalCandidateEvent = NativeDatachannelLocalCandidateEvent<
+    std::string, std::optional<std::string>, std::optional<std::string>>;
+template <>
+struct Bridging<LocalCandidateEvent>
+    : NativeDatachannelLocalCandidateEventBridging<LocalCandidateEvent> {};
 
 template <> struct Bridging<rtc::Description::Direction> {
 	static rtc::Description::Direction fromJs(jsi::Runtime &rt,
@@ -56,45 +70,6 @@ template <> struct Bridging<rtc::Description::Direction> {
 	}
 };
 
-template <> struct Bridging<TrackEvent> {
-	static TrackEvent fromJs(jsi::Runtime &rt, const jsi::Object &value) {
-		try {
-			TrackEvent event;
-			event.pc = value.getProperty(rt, "pc").asString(rt).utf8(rt);
-			event.mid = value.getProperty(rt, "mid").asString(rt).utf8(rt);
-			event.trackId =
-			    value.getProperty(rt, "trackId").asString(rt).utf8(rt);
-			auto streamIds =
-			    value.getProperty(rt, "streamIds").asObject(rt).asArray(rt);
-			for (size_t i = 0; i < streamIds.length(rt); ++i) {
-				std::string streamId =
-				    streamIds.getValueAtIndex(rt, i).asString(rt).utf8(rt);
-				event.streamIds.push_back(streamId);
-			}
-			return event;
-		} catch (const std::logic_error &e) {
-			throw jsi::JSError(rt, e.what());
-		}
-	}
-
-	static jsi::Object toJs(jsi::Runtime &rt, const TrackEvent &event) {
-		try {
-			jsi::Object obj(rt);
-			obj.setProperty(rt, "pc", event.pc);
-			obj.setProperty(rt, "mid", event.mid);
-			obj.setProperty(rt, "trackId", event.trackId);
-			jsi::Array arr = jsi::Array(rt, event.streamIds.size());
-			for (size_t i = 0; i < event.streamIds.size(); ++i) {
-				arr.setValueAtIndex(rt, i, event.streamIds[i]);
-			}
-			obj.setProperty(rt, "streamIds", arr);
-			return obj;
-		} catch (const std::logic_error &e) {
-			throw jsi::JSError(rt, e.what());
-		}
-	}
-};
-
 template <> struct Bridging<rtc::Description::Type> {
 	static rtc::Description::Type fromJs(jsi::Runtime &rt,
 	                                     const jsi::String &value) {
@@ -104,6 +79,70 @@ template <> struct Bridging<rtc::Description::Type> {
 	static jsi::String toJs(jsi::Runtime &rt,
 	                        rtc::Description::Type direction) {
 		return bridging::toJs(rt, rtc::Description::typeToString(direction));
+	}
+};
+
+template <> struct Bridging<rtc::PeerConnection::GatheringState> {
+	static rtc::PeerConnection::GatheringState
+	fromJs(jsi::Runtime &rt, const jsi::String &value) {
+		if (value.utf8(rt) == "new")
+			return rtc::PeerConnection::GatheringState::New;
+		else if (value.utf8(rt) == "gathering")
+			return rtc::PeerConnection::GatheringState::InProgress;
+		else if (value.utf8(rt) == "complete")
+			return rtc::PeerConnection::GatheringState::Complete;
+		else
+			throw jsi::JSError(rt, "Invalid gathering state");
+	}
+
+	static jsi::String toJs(jsi::Runtime &rt,
+	                        rtc::PeerConnection::GatheringState state) {
+		if (state == rtc::PeerConnection::GatheringState::New)
+			return bridging::toJs(rt, "new");
+		else if (state == rtc::PeerConnection::GatheringState::InProgress)
+			return bridging::toJs(rt, "gathering");
+		else if (state == rtc::PeerConnection::GatheringState::Complete)
+			return bridging::toJs(rt, "complete");
+		else
+			throw jsi::JSError(rt, "Invalid gathering state");
+	}
+};
+
+template <> struct Bridging<rtc::PeerConnection::State> {
+	static rtc::PeerConnection::State fromJs(jsi::Runtime &rt,
+	                                         const jsi::String &value) {
+		if (value.utf8(rt) == "new")
+			return rtc::PeerConnection::State::New;
+		else if (value.utf8(rt) == "connecting")
+			return rtc::PeerConnection::State::Connecting;
+		else if (value.utf8(rt) == "connected")
+			return rtc::PeerConnection::State::Connected;
+		else if (value.utf8(rt) == "disconnected")
+			return rtc::PeerConnection::State::Disconnected;
+		else if (value.utf8(rt) == "failed")
+			return rtc::PeerConnection::State::Failed;
+		else if (value.utf8(rt) == "closed")
+			return rtc::PeerConnection::State::Closed;
+		else
+			throw jsi::JSError(rt, "Invalid peerconnection state");
+	}
+
+	static jsi::String toJs(jsi::Runtime &rt,
+	                        rtc::PeerConnection::State state) {
+		if (state == rtc::PeerConnection::State::New)
+			return bridging::toJs(rt, "new");
+		else if (state == rtc::PeerConnection::State::Connecting)
+			return bridging::toJs(rt, "connecting");
+		else if (state == rtc::PeerConnection::State::Connected)
+			return bridging::toJs(rt, "connected");
+		else if (state == rtc::PeerConnection::State::Disconnected)
+			return bridging::toJs(rt, "disconnected");
+		else if (state == rtc::PeerConnection::State::Failed)
+			return bridging::toJs(rt, "failed");
+		else if (state == rtc::PeerConnection::State::Closed)
+			return bridging::toJs(rt, "closed");
+		else
+			throw jsi::JSError(rt, "Invalid peerconnection state");
 	}
 };
 

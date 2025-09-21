@@ -60,16 +60,53 @@ std::string NativeDatachannel::createPeerConnection(
 	}
 	auto peerConnection = std::make_shared<rtc::PeerConnection>(c);
 	std::string pc = emplacePeerConnection(peerConnection);
+
+	peerConnection->onStateChange([this, pc](rtc::PeerConnection::State state) {
+		ConnectionStateChangeEvent event{
+		    pc,
+		    state,
+		};
+		emitOnConnectionStateChange(event);
+	});
+
+	peerConnection->onGatheringStateChange(
+	    [this, pc](rtc::PeerConnection::GatheringState state) {
+		    if (state == rtc::PeerConnection::GatheringState::Complete) {
+			    LocalCandidateEvent event{
+			        pc,
+			        std::nullopt,
+			        std::nullopt,
+			    };
+			    emitOnLocalCandidate(event);
+		    }
+
+		    GatheringStateChangeEvent event{pc, state};
+		    emitOnGatheringStateChange(event);
+	    });
+
 	peerConnection->onLocalCandidate([this, pc](rtc::Candidate cand) {
-		LocalCandidate localCandidate{
+		LocalCandidateEvent event{
 		    pc,
 		    cand.candidate(),
 		    cand.mid(),
 		};
-		emitOnLocalCandidate(localCandidate);
+		emitOnLocalCandidate(event);
 	});
 
 	return pc;
+}
+
+rtc::PeerConnection::GatheringState
+NativeDatachannel::getGatheringState(jsi::Runtime &rt, const std::string &pc) {
+	auto peerConnection = getPeerConnection(pc);
+	return peerConnection->gatheringState();
+}
+
+rtc::PeerConnection::State
+NativeDatachannel::getPeerConnectionState(jsi::Runtime &rt,
+                                          const std::string &pc) {
+	auto peerConnection = getPeerConnection(pc);
+	return peerConnection->state();
 }
 
 void NativeDatachannel::closePeerConnection([[maybe_unused]] jsi::Runtime &rt,

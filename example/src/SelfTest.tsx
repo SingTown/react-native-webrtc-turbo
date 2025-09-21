@@ -6,6 +6,7 @@ import {
   RTCPeerConnection,
   MediaStream,
   MediaDevices,
+  RTCIceCandidate,
 } from 'react-native-webrtc-turbo';
 
 import {
@@ -54,24 +55,58 @@ export default function SelfTest() {
         ],
       });
 
-      setLocalCandidates('');
-      peerconnection1.onicecandidate = (candidate) => {
-        peerconnection2!.addIceCandidate({
-          candidate: candidate,
-          sdpMid: '0',
-        });
-        setLocalCandidates((prev) => prev + candidate.trim() + '\n');
+      peerconnection1.onconnectionstatechange = () => {
+        console.log(
+          'peerconnection1 connection state:',
+          peerconnection1?.connectionState
+        );
       };
 
-      peerconnection2.onicecandidate = (candidate) => {
-        // peerconnection1.addIceCandidate({
+      peerconnection2.onconnectionstatechange = () => {
+        console.log(
+          'peerconnection2 connection state:',
+          peerconnection2?.connectionState
+        );
+      };
+
+      peerconnection1.onicegatheringstatechange = () => {
+        console.log(
+          'peerconnection1 ice gathering state:',
+          peerconnection1?.iceGatheringState
+        );
+      };
+
+      peerconnection2.onicegatheringstatechange = () => {
+        console.log(
+          'peerconnection2 ice gathering state:',
+          peerconnection2?.iceGatheringState
+        );
+      };
+
+      let tempLocalCandidates: RTCIceCandidate[] = [];
+      peerconnection1.onicecandidate = (event) => {
+        const candidate = event.candidate;
+        if (!candidate) {
+          setLocalCandidates(JSON.stringify(tempLocalCandidates, null, 2));
+          return;
+        }
+        peerconnection2!.addIceCandidate(candidate);
+        tempLocalCandidates.push(candidate);
+      };
+
+      let tempRemoteCandidates: RTCIceCandidate[] = [];
+      peerconnection2.onicecandidate = (event) => {
+        const candidate = event.candidate;
+        if (!candidate) {
+          setRemoteCandidates(JSON.stringify(tempRemoteCandidates, null, 2));
+          return;
+        }
+        // peerconnection1!.addIceCandidate({
         //   candidate: candidate,
         //   sdpMid: '0',
         // });
-        setRemoteCandidates((prev) => prev + candidate.trim() + '\n');
+        tempRemoteCandidates.push(candidate);
       };
-
-      setRemoteCandidates('');
 
       peerconnection1.ontrack = (event) => {
         const s = event.streams[0];
@@ -159,7 +194,9 @@ export default function SelfTest() {
 
         {activeTab === 'RemoteSDP' ? (
           <View style={styles.section}>
-            <Text>{remoteDescription}</Text>
+            <ScrollView>
+              <Text>{remoteDescription}</Text>
+            </ScrollView>
             <View style={styles.buttonContainer}>
               <Button
                 title="Set Remote SDP"
@@ -173,7 +210,9 @@ export default function SelfTest() {
 
         {activeTab === 'RemoteCand' ? (
           <View style={styles.section}>
-            <Text> {remoteCandidates} </Text>
+            <ScrollView>
+              <Text> {remoteCandidates} </Text>
+            </ScrollView>
             <View style={styles.buttonContainer}>
               <Button
                 title="Copy Remote Candidates"

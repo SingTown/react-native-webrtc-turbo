@@ -6,6 +6,7 @@ import {
   RTCPeerConnection,
   MediaStream,
   MediaDevices,
+  RTCIceCandidate,
 } from 'react-native-webrtc-turbo';
 
 import {
@@ -46,9 +47,15 @@ export default function App() {
       });
 
       setPc(peerconnection);
-      setLocalCandidates('');
-      peerconnection.onicecandidate = (candidate) => {
-        setLocalCandidates((prev) => prev + candidate.trim() + '\n');
+
+      let tempLocalCandidates: RTCIceCandidate[] = [];
+      peerconnection.onicecandidate = (event) => {
+        const candidate = event.candidate;
+        if (!candidate) {
+          setLocalCandidates(JSON.stringify(tempLocalCandidates, null, 2));
+          return;
+        }
+        tempLocalCandidates.push(candidate);
       };
 
       localStream = await MediaDevices.getUserMedia({
@@ -109,13 +116,15 @@ export default function App() {
 
         {activeTab === 'RemoteSDP' ? (
           <View style={styles.section}>
-            <TextInput
-              style={styles.multilineInput}
-              value={inputRemoteSDP}
-              onChangeText={setInputRemoteSDP}
-              placeholder="Please enter remote SDP..."
-              multiline
-            />
+            <ScrollView>
+              <TextInput
+                style={styles.multilineInput}
+                value={inputRemoteSDP}
+                onChangeText={setInputRemoteSDP}
+                placeholder="Please enter remote SDP..."
+                multiline
+              />
+            </ScrollView>
             <View style={styles.buttonContainer}>
               <Button
                 title="Set Remote SDP"
@@ -143,23 +152,21 @@ export default function App() {
 
         {activeTab === 'RemoteCand' ? (
           <View style={styles.section}>
-            <TextInput
-              style={styles.multilineInput}
-              value={inputCandidates}
-              onChangeText={setInputCandidates}
-              placeholder="Please enter remote candidates..."
-              multiline
-            />
+            <ScrollView>
+              <TextInput
+                style={styles.multilineInput}
+                value={inputCandidates}
+                onChangeText={setInputCandidates}
+                placeholder="Please enter remote candidates..."
+                multiline
+              />
+            </ScrollView>
             <View style={styles.buttonContainer}>
               <Button
                 title="Add Remote Candidate"
                 onPress={async () => {
-                  for (const remoteCandidate of inputCandidates.split('\n')) {
-                    if (remoteCandidate.trim() === '') continue;
-                    await pc?.addIceCandidate({
-                      candidate: remoteCandidate,
-                      sdpMid: '0',
-                    });
+                  for (const candidate of JSON.parse(inputCandidates)) {
+                    await pc?.addIceCandidate(candidate);
                   }
                 }}
               />
