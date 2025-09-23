@@ -169,10 +169,12 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 		}
 
 		if (sendStream) {
+			sendStream->clear();
 			SenderOnOpen(track, sendStream, rtpMap.value());
 		}
 
 		if (recvStream) {
+			recvStream->clear();
 			ReceiverOnOpen(track, recvStream, rtpMap.value());
 		}
 	});

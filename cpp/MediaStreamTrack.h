@@ -22,6 +22,7 @@ class MediaStreamTrack {
 	virtual ~MediaStreamTrack() { onPushCallback = nullptr; }
 	virtual std::string type() = 0;
 	virtual void push(std::shared_ptr<AVFrame> frame) = 0;
+	virtual void clear() = 0;
 	virtual std::shared_ptr<AVFrame> popVideo(AVPixelFormat format) = 0;
 	virtual std::shared_ptr<AVFrame> popAudio(AVSampleFormat format,
 	                                          int sampleRate, int channels) = 0;
@@ -79,6 +80,13 @@ class VideoStreamTrack : public MediaStreamTrack {
 		return frame;
 	}
 
+	void clear() override {
+		std::lock_guard lock(mutex);
+		while (!queue.empty()) {
+			queue.pop();
+		}
+	}
+
 	std::shared_ptr<AVFrame> popVideo(AVPixelFormat format) override {
 		auto frame = pop();
 		if (!frame) {
@@ -134,6 +142,11 @@ class AudioStreamTrack : public MediaStreamTrack {
 		if (callbackCopy) {
 			callbackCopy(frame);
 		}
+	}
+
+	void clear() override {
+		std::lock_guard lock(mutex);
+		pcm.clear();
 	}
 
 	std::shared_ptr<AVFrame> popAudio(AVSampleFormat format, int sampleRate,
