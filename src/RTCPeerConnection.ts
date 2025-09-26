@@ -115,6 +115,7 @@ export class RTCPeerConnection {
         return;
       }
       track.id = obj.trackId;
+      let streams = [];
       for (const msid of obj.streamIds) {
         let stream = this.streams.get(msid);
         if (!stream) {
@@ -122,12 +123,12 @@ export class RTCPeerConnection {
           this.streams.set(msid, stream);
         }
         stream.addTrack(track);
-        transceiver.streams.push(stream);
+        streams.push(stream);
       }
 
       this.ontrack({
         track: track,
-        streams: transceiver.streams,
+        streams: streams,
       });
     });
   }
