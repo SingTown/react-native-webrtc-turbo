@@ -97,13 +97,14 @@ std::string NativeDatachannel::createPeerConnection(
 }
 
 rtc::PeerConnection::GatheringState
-NativeDatachannel::getGatheringState(jsi::Runtime &rt, const std::string &pc) {
+NativeDatachannel::getGatheringState([[maybe_unused]] jsi::Runtime &rt,
+                                     const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->gatheringState();
 }
 
 rtc::PeerConnection::State
-NativeDatachannel::getPeerConnectionState(jsi::Runtime &rt,
+NativeDatachannel::getPeerConnectionState([[maybe_unused]] jsi::Runtime &rt,
                                           const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->state();
