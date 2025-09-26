@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 (2025-09-26)
+
+* fix: android build ([da86702](https://github.com/SingTown/react-native-webrtc-turbo/commit/da86702))
+* fix: ontrack streams ([46b299e](https://github.com/SingTown/react-native-webrtc-turbo/commit/46b299e))
+* fix: sendrecv ([8f3019f](https://github.com/SingTown/react-native-webrtc-turbo/commit/8f3019f))
+* feat: clear when track open ([91c45f6](https://github.com/SingTown/react-native-webrtc-turbo/commit/91c45f6))
+* feat: onconnectionstatechange, onicegatheringstatechange ([319acd4](https://github.com/SingTown/react-native-webrtc-turbo/commit/319acd4))
+
 ## 0.7.0 (2025-09-17)
 
 * fix: add mid in RTCRtpTransceiver ([1c11758](https://github.com/SingTown/react-native-webrtc-turbo/commit/1c11758))
