@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  // WebrtcView,
+  WebrtcView,
   RTCPeerConnection,
   MediaStream,
   MediaDevices,
@@ -32,6 +32,7 @@ export default function App() {
   useEffect(() => {
     let peerconnection: RTCPeerConnection | null = null;
     let localStream: MediaStream | null = null;
+    let remoteStream: MediaStream | null = null;
     (async () => {
       const url = await AsyncStorage.getItem('iceUrl');
       const user = await AsyncStorage.getItem('iceUsername');
@@ -58,15 +59,32 @@ export default function App() {
         tempLocalCandidates.push(candidate);
       };
 
+      peerconnection.ontrack = (event) => {
+        const s = event.streams[0];
+        if (s) {
+          remoteStream = s;
+          setStream(remoteStream);
+        }
+      };
+
       localStream = await MediaDevices.getUserMedia({
         video: true,
-        audio: false,
+        audio: true,
       });
-      setStream(localStream);
+
+      localStream?.getTracks().forEach((track) => {
+        peerconnection?.addTransceiver(track, {
+          direction: 'sendrecv',
+          streams: [localStream!],
+        });
+      });
     })();
 
     return () => {
       localStream?.getTracks().forEach((track) => {
+        track.stop();
+      });
+      remoteStream?.getTracks().forEach((track) => {
         track.stop();
       });
       setStream(null);
@@ -79,7 +97,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* <WebrtcView style={styles.player} stream={stream} /> */}
+        <WebrtcView style={styles.player} stream={stream} />
         <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {activeTab === 'LocalSDP' ? (
@@ -133,13 +151,6 @@ export default function App() {
                   pc.setRemoteDescription({
                     sdp: inputRemoteSDP.trim() + '\n',
                     type: 'offer',
-                  });
-                  // setStream(localStream);
-                  stream?.getTracks().forEach((track) => {
-                    pc.addTransceiver(track, {
-                      direction: 'sendonly',
-                      streams: [stream],
-                    });
                   });
                   const answer = await pc.createAnswer();
                   setLocalDescription(answer.sdp || '');

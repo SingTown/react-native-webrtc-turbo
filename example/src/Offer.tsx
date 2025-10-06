@@ -5,6 +5,7 @@ import {
   WebrtcView,
   RTCPeerConnection,
   MediaStream,
+  MediaDevices,
   RTCIceCandidate,
 } from 'react-native-webrtc-turbo';
 
@@ -31,6 +32,7 @@ export default function Offer() {
   useEffect(() => {
     let peerconnection: RTCPeerConnection | null = null;
     let localStream: MediaStream | null = null;
+    let remoteStream: MediaStream | null = null;
 
     (async () => {
       console.log('Setting up local description listener');
@@ -61,17 +63,21 @@ export default function Offer() {
       peerconnection.ontrack = (event) => {
         const s = event.streams[0];
         if (s) {
-          localStream = s;
-          setStream(localStream);
+          remoteStream = s;
+          setStream(remoteStream);
         }
       };
 
-      peerconnection.addTransceiver('video', {
-        direction: 'recvonly',
+      localStream = await MediaDevices.getUserMedia({
+        video: true,
+        audio: true,
       });
 
-      peerconnection.addTransceiver('audio', {
-        direction: 'recvonly',
+      localStream?.getTracks().forEach((track) => {
+        peerconnection?.addTransceiver(track, {
+          direction: 'sendrecv',
+          streams: [localStream!],
+        });
       });
 
       const offer = await peerconnection.createOffer();
@@ -81,13 +87,16 @@ export default function Offer() {
     })();
 
     return () => {
-      peerconnection?.close();
-      setPc(null);
-
       localStream?.getTracks().forEach((track) => {
         track.stop();
       });
+      remoteStream?.getTracks().forEach((track) => {
+        track.stop();
+      });
       setStream(null);
+
+      peerconnection?.close();
+      setPc(null);
     };
   }, []);
 
