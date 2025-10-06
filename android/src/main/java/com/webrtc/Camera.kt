@@ -2,133 +2,131 @@ package com.webrtc
 
 import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.ImageFormat
 import android.hardware.camera2.*
 import android.media.Image
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
-import androidx.core.content.ContextCompat
-import android.util.Log
+import androidx.annotation.RequiresPermission
 
-class Camera(
-  private val context: Context,
-  private val mediaStreamTrackId: String,
-) {
-
+object Camera {
   external fun pushVideoStreamTrack(mediaStreamTrackId: String, image: Image)
 
-  companion object {
-    private const val DEFAULT_WIDTH = 1280
-    private const val DEFAULT_HEIGHT = 720
-  }
+  private const val DEFAULT_WIDTH = 1280
+  private const val DEFAULT_HEIGHT = 720
 
+  private var cameraManager: CameraManager? = null
   private var cameraDevice: CameraDevice? = null
   private var captureSession: CameraCaptureSession? = null
-  private var imageReader: ImageReader? = null
-  private var backgroundHandler: Handler? = null
-  private var backgroundThread: HandlerThread? = null
+  private var backgroundThread = HandlerThread("CameraBackground")
+  private var imageReader =
+    ImageReader.newInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, ImageFormat.YUV_420_888, 2)
+  private val containers = mutableListOf<String>()
 
-  val sessionStateCallback = object : CameraCaptureSession.StateCallback() {
-    override fun onConfigured(session: CameraCaptureSession) {
-      captureSession = session
-      start()
-    }
-
-    override fun onConfigureFailed(session: CameraCaptureSession) {
-      throw RuntimeException("Camera configuration failed")
-    }
+  fun init(context: Context) {
+    cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
   }
 
   private val cameraStateCallback = object : CameraDevice.StateCallback() {
     override fun onOpened(camera: CameraDevice) {
       cameraDevice = camera
-      cameraDevice?.createCaptureSession(
-        listOf(imageReader!!.surface),
-        sessionStateCallback,
-        backgroundHandler
-      )
-    }
+      val captureRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+      captureRequestBuilder.addTarget(imageReader.surface)
 
-    override fun onDisconnected(camera: CameraDevice) {
-      cameraDevice = null
-      camera.close()
-    }
-
-    override fun onError(camera: CameraDevice, error: Int) {
-      cameraDevice = null
-      throw RuntimeException("Camera run Error!")
-    }
-  }
-
-  init {
-    val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-    backgroundThread = HandlerThread("CameraBackground").apply { start() }
-    backgroundHandler = Handler(backgroundThread!!.looper)
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) !=
-      PackageManager.PERMISSION_GRANTED
-    ) {
-      throw RuntimeException("Camera Permission Error!")
-    }
-
-    val cameraId = cameraManager.cameraIdList.firstOrNull()
-    Log.e("webrtc", "cameraId:" + cameraId.toString())
-    if (cameraId == null)
-      throw RuntimeException("Camera not exist!")
-
-    imageReader = ImageReader.newInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, ImageFormat.YUV_420_888, 2)
-    val onImageAvailableListener = ImageReader.OnImageAvailableListener { reader ->
-      val image = reader.acquireNextImage()
-      image?.use { pushVideoStreamTrack(mediaStreamTrackId, it) }
-    }
-    imageReader?.setOnImageAvailableListener(onImageAvailableListener, backgroundHandler)
-    cameraManager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
-  }
-
-  fun dispose() {
-    captureSession?.stopRepeating()
-
-    captureSession?.close()
-    captureSession = null
-
-    cameraDevice?.close()
-    cameraDevice = null
-
-    imageReader?.close()
-    imageReader = null
-
-    backgroundHandler?.post {
-      backgroundThread?.quitSafely()
-    }
-
-    backgroundThread = null
-    backgroundHandler = null
-  }
-
-  fun start() {
-    if (cameraDevice != null && captureSession != null) {
-      val captureRequestBuilder = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-      captureRequestBuilder?.addTarget(imageReader?.surface!!)
-
-      captureRequestBuilder?.set(
+      captureRequestBuilder.set(
         CaptureRequest.CONTROL_AF_MODE,
         CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
       )
 
-      captureRequestBuilder?.set(
+      captureRequestBuilder.set(
         CaptureRequest.CONTROL_AE_MODE,
         CaptureRequest.CONTROL_AE_MODE_ON
       )
 
-      captureRequestBuilder?.set(
+      captureRequestBuilder.set(
         CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
         android.util.Range(30, 30)
       )
+      val captureRequest = captureRequestBuilder.build()
 
+      val sessionStateCallback = object : CameraCaptureSession.StateCallback() {
+        override fun onConfigured(session: CameraCaptureSession) {
+          captureSession = session
+          session.setRepeatingRequest(captureRequest, null, Handler(backgroundThread.looper))
+        }
 
-      val captureRequest = captureRequestBuilder?.build()
-      captureSession?.setRepeatingRequest(captureRequest!!, null, backgroundHandler)
+        override fun onConfigureFailed(session: CameraCaptureSession) {
+          throw RuntimeException("Camera configuration failed")
+        }
+      }
+      camera.createCaptureSession(
+        listOf(imageReader.surface),
+        sessionStateCallback,
+        Handler(backgroundThread.looper)
+      )
+    }
+
+    override fun onDisconnected(camera: CameraDevice) {
+      camera.close()
+    }
+
+    override fun onError(camera: CameraDevice, error: Int) {
+      camera.close()
+      throw RuntimeException("Camera run Error!")
+    }
+  }
+
+  @RequiresPermission(Manifest.permission.CAMERA)
+  fun start() {
+    backgroundThread = HandlerThread("CameraBackground")
+    backgroundThread.start()
+    val onImageAvailableListener = ImageReader.OnImageAvailableListener { reader ->
+      val image = reader.acquireNextImage()
+      image.use {
+        for (container in containers) {
+          pushVideoStreamTrack(container, it)
+        }
+      }
+    }
+    imageReader.setOnImageAvailableListener(
+      onImageAvailableListener,
+      Handler(backgroundThread.looper)
+    )
+    val cameraId = cameraManager?.cameraIdList?.firstOrNull()
+    if (cameraId == null)
+      throw RuntimeException("Camera not exist!")
+    cameraManager?.openCamera(cameraId, cameraStateCallback, Handler(backgroundThread.looper))
+  }
+
+  fun stop() {
+    captureSession?.stopRepeating()
+    captureSession?.close()
+    captureSession = null
+    cameraDevice?.close()
+    cameraDevice = null
+    backgroundThread.quitSafely()
+    backgroundThread.join()
+  }
+
+  @RequiresPermission(Manifest.permission.CAMERA)
+  fun push(container: String) {
+    if (containers.contains(container)) {
+      return
+    }
+    containers.add(container)
+    if (containers.size == 1) {
+      start()
+    }
+  }
+
+  fun pop(container: String) {
+    if (!containers.contains(container)) {
+      return
+    }
+    containers.remove(container)
+    if (containers.isEmpty()) {
+      stop()
     }
   }
 }

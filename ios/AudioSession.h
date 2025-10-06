@@ -8,10 +8,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (instancetype)sharedInstance;
 
-- (void)capturePushMediaStreamTrack:(NSString *)id;
-- (void)capturePopMediaStreamTrack:(NSString *)id;
-- (void)playerPushMediaStreamTrack:(NSString *)id;
-- (void)playerPopMediaStreamTrack:(NSString *)id;
+- (void)microphonePush:(NSString *)container;
+- (void)microphonePop:(NSString *)container;
+- (void)soundPush:(NSString *)container;
+- (void)soundPop:(NSString *)container;
 
 @end
 

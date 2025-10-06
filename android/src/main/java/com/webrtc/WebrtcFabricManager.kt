@@ -83,8 +83,8 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
       return
     }
 
-    Speaker.popAudioStreamTrack(old)
-    Speaker.pushMediaStreamTrackId(current)
+    Speaker.pop(old)
+    Speaker.push(current)
     this.audioStreamTrackId = current
   }
 

@@ -113,13 +113,13 @@ static AudioSession *_sharedInstance = nil;
   });
 }
 
-- (void)capturePushMediaStreamTrack:(NSString *)id {
-  [self.audioInStreamTrackIds addObject:id];
+- (void)microphonePush:(NSString *)container {
+  [self.audioInStreamTrackIds addObject:container];
   [self.audioSession setActive:YES error:nil];
 }
 
-- (void)capturePopMediaStreamTrack:(NSString *)id {
-  [self.audioInStreamTrackIds removeObject:id];
+- (void)microphonePop:(NSString *)container {
+  [self.audioInStreamTrackIds removeObject:container];
   if (self.audioInStreamTrackIds.count == 0) {
     if (self.audioOutStreamTrackIds.count == 0) {
       [self.audioSession setActive:NO error:nil];
@@ -127,15 +127,15 @@ static AudioSession *_sharedInstance = nil;
   }
 }
 
-- (void)playerPushMediaStreamTrack:(NSString *)id {
-  [self.audioOutStreamTrackIds addObject:id];
+- (void)soundPush:(NSString *)container {
+  [self.audioOutStreamTrackIds addObject:container];
   [self.audioSession setActive:YES error:nil];
   [self.playerNode play];
   [self.audioEngine startAndReturnError:nil];
 }
 
-- (void)playerPopMediaStreamTrack:(NSString *)id {
-  [self.audioOutStreamTrackIds removeObject:id];
+- (void)soundPop:(NSString *)container {
+  [self.audioOutStreamTrackIds removeObject:container];
   if (self.audioOutStreamTrackIds.count == 0) {
     [self.playerNode stop];
     [self.audioEngine stop];

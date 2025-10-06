@@ -58,9 +58,9 @@ using namespace facebook::react;
   if (oldViewProps.audioStreamTrackId != newViewProps.audioStreamTrackId) {
     _currentAudioStreamTrackId = newViewProps.audioStreamTrackId;
     AudioSession *audioSession = [AudioSession sharedInstance];
-    [audioSession playerPopMediaStreamTrack:
+    [audioSession soundPop:
      [NSString stringWithUTF8String:oldViewProps.audioStreamTrackId.c_str()]];
-    [audioSession playerPushMediaStreamTrack:
+    [audioSession soundPush:
      [NSString stringWithUTF8String:_currentAudioStreamTrackId.c_str()]];
   }
   
@@ -69,7 +69,7 @@ using namespace facebook::react;
 
 - (void)prepareForRecycle {
   AudioSession *audioSession = [AudioSession sharedInstance];
-  [audioSession playerPopMediaStreamTrack:
+  [audioSession soundPop:
    [NSString stringWithUTF8String:_currentAudioStreamTrackId.c_str()]];
   [super prepareForRecycle];
 }

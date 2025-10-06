@@ -6,7 +6,7 @@ import android.media.MediaRecorder
 
 object MicroPhone {
     private var audioRecord: AudioRecord? = null
-    private val trackIds = mutableListOf<String>()
+    private val containers = mutableListOf<String>()
     private var recordThread: Thread? = null
     private var isRecording = false
 
@@ -25,8 +25,8 @@ object MicroPhone {
                 if (read < 0) {
                     continue
                 }
-                for (id in trackIds) {
-                    pushAudioStreamTrack(id, buffer, read)
+                for (container in containers) {
+                    pushAudioStreamTrack(container, buffer, read)
                 }
             }
         }
@@ -42,18 +42,22 @@ object MicroPhone {
         recordThread = null
     }
 
-    fun pushMediaStreamTrackId(id: String) {
-        if (!trackIds.contains(id)) {
-            trackIds.add(id)
+    fun push(container: String) {
+        if (containers.contains(container)) {
+            return
         }
-        if (trackIds.size == 1) {
+        containers.add(container)
+        if (containers.size == 1) {
             start()
         }
     }
 
-    fun popMediaStreamTrackId(id: String) {
-        trackIds.remove(id)
-        if (trackIds.isEmpty()) {
+    fun pop(container: String) {
+        if (!containers.contains(container)) {
+            return
+        }
+        containers.remove(container)
+        if (containers.isEmpty()) {
             stop()
         }
     }

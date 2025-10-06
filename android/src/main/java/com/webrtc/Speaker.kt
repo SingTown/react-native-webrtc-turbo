@@ -6,7 +6,7 @@ import android.media.AudioTrack
 
 object Speaker {
     private var audioTrack: AudioTrack? = null
-    private val trackIds = mutableListOf<String>()
+    private val containers = mutableListOf<String>()
     private var playThread: Thread? = null
     private var isPlaying = false
 
@@ -20,12 +20,13 @@ object Speaker {
         audioTrack?.play()
         playThread = Thread {
             while (isPlaying) {
-                for (id in trackIds) {
-                    val pcmData = popAudioStreamTrack(id)
+                for (container in containers) {
+                    val pcmData = popAudioStreamTrack(container)
                     if (pcmData != null) {
                         audioTrack?.write(pcmData, 0, pcmData.size)
                     }
                 }
+                Thread.sleep(10)
             }
         }
         playThread?.start()
@@ -37,21 +38,26 @@ object Speaker {
         audioTrack?.stop()
         audioTrack?.release()
         audioTrack = null
+        playThread?.join()
         playThread = null
     }
 
-    fun pushMediaStreamTrackId(id: String) {
-        if (!trackIds.contains(id)) {
-            trackIds.add(id)
+    fun push(container: String) {
+        if (containers.contains(container)) {
+            return
         }
-        if (trackIds.size == 1) {
+        containers.add(container)
+        if (containers.size == 1) {
             start()
         }
     }
 
-    fun popMediaStreamTrackId(id: String) {
-        trackIds.remove(id)
-        if (trackIds.isEmpty()) {
+    fun pop(container: String) {
+        if (!containers.contains(container)) {
+            return
+        }
+        containers.remove(container)
+        if (containers.isEmpty()) {
             stop()
         }
     }

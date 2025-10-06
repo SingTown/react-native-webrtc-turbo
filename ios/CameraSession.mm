@@ -1,23 +1,35 @@
-#import "Camera.h"
+#import "CameraSession.h"
 #import <AVFoundation/AVFoundation.h>
 #import "MediaStreamTrack.h"
 
-@interface Camera () <AVCaptureVideoDataOutputSampleBufferDelegate>
+static CameraSession *_sharedInstance = nil;
+
+@interface CameraSession () <AVCaptureVideoDataOutputSampleBufferDelegate>
 @property (nonatomic, strong) AVCaptureSession *session;
-@property (nonatomic, strong) NSString *mediaStreamTrackId;
 @property (nonatomic, strong) dispatch_queue_t sampleBufferQueue;
+@property (nonatomic, strong) NSMutableArray<NSString *> *streamTrackIds;
+@property (nonatomic, assign) int64_t ptsBase;
+
 @end
 
-@implementation Camera
+@implementation CameraSession
 
-- (instancetype)init:(NSString *)mediaStreamTrackId {
++ (instancetype)sharedInstance {
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    _sharedInstance = [[CameraSession alloc] init];
+  });
+  return _sharedInstance;
+}
+
+- (instancetype)init {
   self = [super init];
   if (self) {
-    _session = [[AVCaptureSession alloc] init];
-    _session.sessionPreset = AVCaptureSessionPreset1280x720;
-    _sampleBufferQueue = dispatch_queue_create("com.example.camera.queue", DISPATCH_QUEUE_SERIAL);
-    _mediaStreamTrackId = mediaStreamTrackId;
-    _ptsBase = -1;
+    self.session = [[AVCaptureSession alloc] init];
+    self.session.sessionPreset = AVCaptureSessionPreset1280x720;
+    self.sampleBufferQueue = dispatch_queue_create("com.example.camera.queue", DISPATCH_QUEUE_SERIAL);
+    self.streamTrackIds = [NSMutableArray array];
+    self.ptsBase = -1;
     
     NSError *error = nil;
     if (![self setupCameraWithError:&error]) {
@@ -28,6 +40,23 @@
     NSLog(@"Camera init completed");
   }
   return self;
+}
+
+- (void)push:(NSString *)container {
+  [self.streamTrackIds addObject:container];
+
+  if (!self.session.isRunning) {
+    [self.session startRunning];
+  }
+}
+
+- (void)pop:(NSString *)container {
+  [self.streamTrackIds removeObject:container];
+  if (self.streamTrackIds.count == 0) {
+    if (self.session.isRunning) {
+      [self.session stopRunning];
+    }
+  }
 }
 
 - (BOOL)setupCameraWithError:(NSError **)error {
@@ -77,24 +106,6 @@
   return YES;
 }
 
-- (BOOL)isRunning {
-  return self.session.isRunning;
-}
-
-- (BOOL)startCapture:(NSError **)error {
-  if (!self.session.isRunning) {
-    [self.session startRunning];
-    return YES;
-  }
-  return YES;
-}
-
-- (void)stopCapture {
-  if (self.session.isRunning) {
-    [self.session stopRunning];
-  }
-}
-
 #pragma mark - AVCaptureVideoDataOutputSampleBufferDelegate
 - (void)captureOutput:(AVCaptureOutput *)output
 didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
@@ -128,11 +139,12 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
   CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 
-
-  std::string cppStr = [self.mediaStreamTrackId UTF8String];
-  auto mediaStreamTrack = getMediaStreamTrack(cppStr);
-  if (mediaStreamTrack) {
-      mediaStreamTrack->push(frame);
+  for (NSString *streamId in self.streamTrackIds) {
+    std::string cppStr = [streamId UTF8String];
+    auto mediaStreamTrack = getMediaStreamTrack(cppStr);
+    if (mediaStreamTrack) {
+        mediaStreamTrack->push(frame);
+    }
   }
 }
 

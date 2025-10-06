@@ -18,8 +18,7 @@ async function getUserMedia(
     if (!allow) {
       throw new Error('Camera permission denied');
     }
-    const videoTrack = new MediaStreamTrack('video');
-    await NativeMediaDevice.createCamera(videoTrack._sourceId);
+    const videoTrack = new MediaStreamTrack('camera');
     mediaStream.addTrack(videoTrack);
   }
   if (constraints.audio) {
@@ -27,8 +26,7 @@ async function getUserMedia(
     if (!allow) {
       throw new Error('Microphone permission denied');
     }
-    const audioTrack = new MediaStreamTrack('audio');
-    await NativeMediaDevice.createAudio(audioTrack._sourceId);
+    const audioTrack = new MediaStreamTrack('microphone');
     mediaStream.addTrack(audioTrack);
   }
   return mediaStream;
