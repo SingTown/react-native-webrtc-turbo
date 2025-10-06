@@ -32,8 +32,8 @@ export interface Spec extends TurboModule {
   getGatheringState(pc: string): string;
   getPeerConnectionState(pc: string): string;
 
-  createMediaStreamTrack(kind: string): string;
-  stopMediaStreamTrack(id: string): void;
+  createMediaContainer(kind: string): string;
+  removeMediaContainer(id: string): void;
 
   createRTCRtpTransceiver(
     pc: string,

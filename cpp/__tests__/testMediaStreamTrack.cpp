@@ -1,29 +1,29 @@
-#include "MediaStreamTrack.h"
+#include "MediaContainer.h"
 #include <gtest/gtest.h>
 
-TEST(MediaStreamTrackTest, testVideo) {
+TEST(MediaContainerTest, testVideo) {
 	auto frame1 = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
 	auto frame2 = createVideoFrame(AV_PIX_FMT_NV12, 2, 640, 480);
-	auto track = std::make_shared<VideoStreamTrack>();
-	track->push(frame1);
-	track->push(frame2);
-	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 1);
-	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 2);
-	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12), nullptr);
+	auto container = std::make_shared<VideoContainer>();
+	container->push(frame1);
+	container->push(frame2);
+	EXPECT_EQ(container->popVideo(AV_PIX_FMT_NV12)->pts, 1);
+	EXPECT_EQ(container->popVideo(AV_PIX_FMT_NV12)->pts, 2);
+	EXPECT_EQ(container->popVideo(AV_PIX_FMT_NV12), nullptr);
 }
 
-TEST(MediaStreamTrackTest, testVideoPts) {
+TEST(MediaContainerTest, testVideoPts) {
 	auto frame1 = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
 	auto frame2 = createVideoFrame(AV_PIX_FMT_NV12, 2, 640, 480);
-	auto track = std::make_shared<VideoStreamTrack>();
-	track->push(frame2);
-	track->push(frame1);
-	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 1);
-	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12)->pts, 2);
-	EXPECT_EQ(track->popVideo(AV_PIX_FMT_NV12), nullptr);
+	auto container = std::make_shared<VideoContainer>();
+	container->push(frame2);
+	container->push(frame1);
+	EXPECT_EQ(container->popVideo(AV_PIX_FMT_NV12)->pts, 1);
+	EXPECT_EQ(container->popVideo(AV_PIX_FMT_NV12)->pts, 2);
+	EXPECT_EQ(container->popVideo(AV_PIX_FMT_NV12), nullptr);
 }
 
-TEST(MediaStreamTrackTest, testAudioMono) {
+TEST(MediaContainerTest, testAudioMono) {
 	auto frame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
 	float *inData = (float *)frame->data[0];
 	for (int i = 0; i < 960; ++i) {
@@ -31,7 +31,7 @@ TEST(MediaStreamTrackTest, testAudioMono) {
 		static std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 		inData[i] = dist(rng);
 	}
-	auto track = std::make_shared<AudioStreamTrack>();
+	auto track = std::make_shared<AudioContainer>();
 	track->push(frame);
 	auto frameOut = track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 1);
 	EXPECT_EQ(frameOut->nb_samples, 960);
@@ -46,7 +46,7 @@ TEST(MediaStreamTrackTest, testAudioMono) {
 	EXPECT_EQ(track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 1), nullptr);
 }
 
-TEST(MediaStreamTrackTest, testAudioStereo) {
+TEST(MediaContainerTest, testAudioStereo) {
 	auto frame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
 	float *inData = (float *)frame->data[0];
 	for (int i = 0; i < 960; ++i) {
@@ -54,7 +54,7 @@ TEST(MediaStreamTrackTest, testAudioStereo) {
 		static std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 		inData[i] = dist(rng);
 	}
-	auto track = std::make_shared<AudioStreamTrack>();
+	auto track = std::make_shared<AudioContainer>();
 	track->push(frame);
 	auto frameOut = track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
 	EXPECT_EQ(frameOut->nb_samples, 960);
@@ -70,7 +70,7 @@ TEST(MediaStreamTrackTest, testAudioStereo) {
 	EXPECT_EQ(track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2), nullptr);
 }
 
-TEST(MediaStreamTrackTest, testAudioMulti) {
+TEST(MediaContainerTest, testAudioMulti) {
 	auto frame1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 800);
 	float *inData = (float *)frame1->data[0];
 	for (int i = 0; i < frame1->nb_samples; ++i) {
@@ -87,7 +87,7 @@ TEST(MediaStreamTrackTest, testAudioMulti) {
 		inData2[i] = dist(rng);
 	}
 
-	auto track = std::make_shared<AudioStreamTrack>();
+	auto track = std::make_shared<AudioContainer>();
 	track->push(frame1);
 	track->push(frame2);
 	auto frameOut = track->popAudio(AV_SAMPLE_FMT_FLT, 48000, 1);

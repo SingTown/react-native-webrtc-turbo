@@ -9,7 +9,7 @@
 @interface CameraSession : NSObject
 + (instancetype)sharedInstance;
 
-- (void)push:(NSString *)container;
-- (void)pop:(NSString *)container;
+- (void)addContainer:(NSString *)container;
+- (void)removeContainer:(NSString *)container;
 
 @end

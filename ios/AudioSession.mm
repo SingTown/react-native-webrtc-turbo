@@ -6,8 +6,8 @@ static AudioSession *_sharedInstance = nil;
 @interface AudioSession ()
 @property (nonatomic, strong) dispatch_queue_t audioInQueue;
 @property (nonatomic, strong) dispatch_queue_t audioOutQueue;
-@property (nonatomic, strong) NSMutableArray<NSString *> *audioInStreamTrackIds;
-@property (nonatomic, strong) NSMutableArray<NSString *> *audioOutStreamTrackIds;
+@property (nonatomic, strong) NSMutableArray<NSString *> *microphoneContainers;
+@property (nonatomic, strong) NSMutableArray<NSString *> *soundContainers;
 @property (nonatomic, assign) int64_t ptsBase;
 @property (nonatomic, strong) AVAudioSession *audioSession;
 @property (nonatomic, strong) AVAudioEngine *audioEngine;
@@ -28,8 +28,8 @@ static AudioSession *_sharedInstance = nil;
 - (instancetype)init {
   self = [super init];
   self.ptsBase = -1;
-  self.audioInStreamTrackIds = [NSMutableArray array];
-  self.audioOutStreamTrackIds = [NSMutableArray array];
+  self.microphoneContainers = [NSMutableArray array];
+  self.soundContainers = [NSMutableArray array];
   self.audioInQueue = dispatch_queue_create("audio.session.queue.in", DISPATCH_QUEUE_SERIAL);
   self.audioOutQueue = dispatch_queue_create("audio.session.queue.out", DISPATCH_QUEUE_SERIAL);
   
@@ -77,7 +77,7 @@ static AudioSession *_sharedInstance = nil;
 }
 
 - (void)handleInputBuffer:(AVAudioPCMBuffer *)buffer atTime:(AVAudioTime *)when {
-  if (self.audioInStreamTrackIds.count == 0) return;
+  if (self.microphoneContainers.count == 0) return;
   if (self.ptsBase == -1) {
     self.ptsBase = when.sampleTime;
   }
@@ -97,11 +97,11 @@ static AudioSession *_sharedInstance = nil;
     }
   }
   
-  for (NSString *streamId in self.audioInStreamTrackIds) {
-    std::string cppStr = [streamId UTF8String];
-    auto mediaStreamTrack = getMediaStreamTrack(cppStr);
-    if (mediaStreamTrack) {
-      mediaStreamTrack->push(frame);
+  for (NSString *containerId in self.microphoneContainers) {
+    std::string cppStr = [containerId UTF8String];
+    auto container = getMediaContainer(cppStr);
+    if (container) {
+      container->push(frame);
     }
   }
 }
@@ -113,33 +113,45 @@ static AudioSession *_sharedInstance = nil;
   });
 }
 
-- (void)microphonePush:(NSString *)container {
-  [self.audioInStreamTrackIds addObject:container];
+- (void)microphoneAddContainer:(NSString *)container {
+  if ([self.microphoneContainers containsObject:container]) {
+    return;
+  }
+  [self.microphoneContainers addObject:container];
   [self.audioSession setActive:YES error:nil];
 }
 
-- (void)microphonePop:(NSString *)container {
-  [self.audioInStreamTrackIds removeObject:container];
-  if (self.audioInStreamTrackIds.count == 0) {
-    if (self.audioOutStreamTrackIds.count == 0) {
+- (void)microphoneRemoveContainer:(NSString *)container {
+  if (![self.microphoneContainers containsObject:container]) {
+    return;
+  }
+  [self.microphoneContainers removeObject:container];
+  if (self.microphoneContainers.count == 0) {
+    if (self.soundContainers.count == 0) {
       [self.audioSession setActive:NO error:nil];
     }
   }
 }
 
-- (void)soundPush:(NSString *)container {
-  [self.audioOutStreamTrackIds addObject:container];
+- (void)soundAddContainer:(NSString *)container {
+  if ([self.soundContainers containsObject:container]) {
+    return;
+  }
+  [self.soundContainers addObject:container];
   [self.audioSession setActive:YES error:nil];
   [self.playerNode play];
   [self.audioEngine startAndReturnError:nil];
 }
 
-- (void)soundPop:(NSString *)container {
-  [self.audioOutStreamTrackIds removeObject:container];
-  if (self.audioOutStreamTrackIds.count == 0) {
+- (void)soundRemoveContainer:(NSString *)container {
+  if (![self.soundContainers containsObject:container]) {
+    return;
+  }
+  [self.soundContainers removeObject:container];
+  if (self.soundContainers.count == 0) {
     [self.playerNode stop];
     [self.audioEngine stop];
-    if (self.audioInStreamTrackIds.count == 0) {
+    if (self.microphoneContainers.count == 0) {
       [self.audioSession setActive:NO error:nil];
     }
   }
@@ -191,10 +203,10 @@ static AudioSession *_sharedInstance = nil;
 }
 
 - (void)playAudio {
-  for (NSString *streamId in self.audioOutStreamTrackIds) {
-    std::string cppStr = [streamId UTF8String];
-    auto audioStreamTrack = getAudioStreamTrack(cppStr);
-    if (!audioStreamTrack) {
+  for (NSString *containerId in self.soundContainers) {
+    std::string cppStr = [containerId UTF8String];
+    auto container = getAudioContainer(cppStr);
+    if (!container) {
       continue;
     }
     AVAudioFormat *format = [self.playerNode outputFormatForBus:0];
@@ -205,7 +217,7 @@ static AudioSession *_sharedInstance = nil;
       avSampleFormat = AV_SAMPLE_FMT_FLTP;
     }
     
-    auto frame = audioStreamTrack->popAudio(avSampleFormat, format.sampleRate, format.channelCount);
+    auto frame = container->popAudio(avSampleFormat, format.sampleRate, format.channelCount);
     if (!frame) {
       continue;
     }

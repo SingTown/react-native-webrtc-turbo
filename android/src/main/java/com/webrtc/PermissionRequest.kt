@@ -8,7 +8,7 @@ import androidx.core.content.ContextCompat
 import com.facebook.react.modules.core.PermissionAwareActivity
 import kotlin.random.Random
 
-fun requestPermission(context: ReactApplicationContext, name:String, promise: Promise) {
+fun requestPermission(context: ReactApplicationContext, name: String, promise: Promise) {
   val currentActivity = context.currentActivity
   val permission: String
   if (name == "camera") {

@@ -12,14 +12,14 @@
 #define CHANNELS 2
 #define FRAME_SIZE 960
 
-class MediaStreamTrack {
+class MediaContainer {
   protected:
 	std::recursive_mutex mutex;
 	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
 
   public:
-	MediaStreamTrack() = default;
-	virtual ~MediaStreamTrack() { onPushCallback = nullptr; }
+	MediaContainer() = default;
+	virtual ~MediaContainer() { onPushCallback = nullptr; }
 	virtual std::string type() = 0;
 	virtual void push(std::shared_ptr<AVFrame> frame) = 0;
 	virtual void clear() = 0;
@@ -40,7 +40,7 @@ struct ComparePTS {
 	}
 };
 
-class VideoStreamTrack : public MediaStreamTrack {
+class VideoContainer : public MediaContainer {
   private:
 	std::priority_queue<std::shared_ptr<AVFrame>,
 	                    std::vector<std::shared_ptr<AVFrame>>, ComparePTS>
@@ -102,7 +102,7 @@ class VideoStreamTrack : public MediaStreamTrack {
 	}
 };
 
-class AudioStreamTrack : public MediaStreamTrack {
+class AudioContainer : public MediaContainer {
   private:
 	int64_t pts;
 	std::vector<float> pcm;
@@ -175,13 +175,13 @@ class AudioStreamTrack : public MediaStreamTrack {
 	}
 };
 
-std::shared_ptr<MediaStreamTrack> getMediaStreamTrack(const std::string &id);
-void eraseMediaStreamTrack(const std::string &id);
+std::shared_ptr<MediaContainer> getMediaContainer(const std::string &id);
+void eraseMediaContainer(const std::string &id);
 
-std::shared_ptr<VideoStreamTrack> getVideoStreamTrack(const std::string &id);
-std::string emplaceVideoStreamTrack(std::shared_ptr<VideoStreamTrack> ptr);
-void eraseVideoStreamTrack(const std::string &id);
+std::shared_ptr<VideoContainer> getVideoContainer(const std::string &id);
+std::string emplaceVideoContainer(std::shared_ptr<VideoContainer> ptr);
+void eraseVideoContainer(const std::string &id);
 
-std::shared_ptr<AudioStreamTrack> getAudioStreamTrack(const std::string &id);
-std::string emplaceAudioStreamTrack(std::shared_ptr<AudioStreamTrack> ptr);
-void eraseAudioStreamTrack(const std::string &id);
+std::shared_ptr<AudioContainer> getAudioContainer(const std::string &id);
+std::string emplaceAudioContainer(std::shared_ptr<AudioContainer> ptr);
+void eraseAudioContainer(const std::string &id);

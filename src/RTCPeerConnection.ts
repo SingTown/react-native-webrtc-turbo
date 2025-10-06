@@ -197,8 +197,8 @@ export class RTCPeerConnection {
     for (let i = 0; i < this.transceivers.length; i++) {
       const t = this.transceivers[i];
       if (!t) continue;
-      const sendms = t?.sender.track?._sourceId || '';
-      const recvms = t?.receiver.track?._sourceId || '';
+      const sendms = t?.sender.track?._containerId || '';
+      const recvms = t?.receiver.track?._containerId || '';
       if (!t.id) {
         const msids = t.streams.map((s) => s.msid);
         const id = NativeDatachannel.createRTCRtpTransceiver(

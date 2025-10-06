@@ -1,5 +1,5 @@
 #include "NativeDatachannel.h"
-#include "MediaStreamTrack.h"
+#include "MediaContainer.h"
 #include "RTCRtpReceiver.h"
 #include "guid.h"
 #include "log.h"
@@ -118,28 +118,34 @@ void NativeDatachannel::closePeerConnection([[maybe_unused]] jsi::Runtime &rt,
 }
 
 std::string
-NativeDatachannel::createMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt,
-                                          const std::string &kind) {
+NativeDatachannel::createMediaContainer([[maybe_unused]] jsi::Runtime &rt,
+                                        const std::string &kind) {
 	if (kind == "audio") {
-		auto mediaStreamTrack = std::make_shared<AudioStreamTrack>();
-		return emplaceAudioStreamTrack(mediaStreamTrack);
+		auto container = std::make_shared<AudioContainer>();
+		return emplaceAudioContainer(container);
 	} else if (kind == "video") {
-		auto mediaStreamTrack = std::make_shared<VideoStreamTrack>();
-		return emplaceVideoStreamTrack(mediaStreamTrack);
+		auto container = std::make_shared<VideoContainer>();
+		return emplaceVideoContainer(container);
 	}
 	throw std::invalid_argument("kind must be 'audio' or 'video'");
+}
+
+void NativeDatachannel::removeMediaContainer([[maybe_unused]] jsi::Runtime &rt,
+                                             const std::string &id) {
+	eraseMediaContainer(id);
 }
 
 std::string NativeDatachannel::createRTCRtpTransceiver(
     [[maybe_unused]] jsi::Runtime &rt, const std::string &pc, int index,
     const std::string &kind, rtc::Description::Direction direction,
-    const std::string &sendms, const std::string &recvms,
+    const std::string &sendContainerId, const std::string &recvContainerId,
     const std::vector<std::string> &msids,
     const std::optional<std::string> &trackid) {
 
 	auto peerConnection = getPeerConnection(pc);
-	auto track = addTransceiver(peerConnection, index, kind, direction, sendms,
-	                            recvms, msids, trackid);
+	auto track =
+	    addTransceiver(peerConnection, index, kind, direction, sendContainerId,
+	                   recvContainerId, msids, trackid);
 
 	return emplaceTrack(track);
 }
@@ -151,11 +157,6 @@ void NativeDatachannel::stopRTCTransceiver([[maybe_unused]] jsi::Runtime &rt,
 		track->close();
 		trackMap.erase(tr);
 	}
-}
-
-void NativeDatachannel::stopMediaStreamTrack([[maybe_unused]] jsi::Runtime &rt,
-                                             const std::string &id) {
-	eraseMediaStreamTrack(id);
 }
 
 std::string NativeDatachannel::createOffer([[maybe_unused]] jsi::Runtime &rt,

@@ -1,4 +1,4 @@
-#include "MediaStreamTrack.h"
+#include "MediaContainer.h"
 #include <android/bitmap.h>
 #include <chrono>
 #include <jni.h>
@@ -6,38 +6,35 @@
 
 namespace facebook::react {
 
-std::shared_ptr<VideoStreamTrack> getVideoStreamTrackJni(JNIEnv *env,
-                                                         jstring id) {
+std::shared_ptr<VideoContainer> getVideoContainerJni(JNIEnv *env, jstring id) {
 	const char *idChars = env->GetStringUTFChars(id, nullptr);
 	std::string idStr(idChars);
 	env->ReleaseStringUTFChars(id, idChars);
 	if (idStr.empty()) {
 		return nullptr;
 	}
-	return getVideoStreamTrack(idStr);
+	return getVideoContainer(idStr);
 }
 
-std::shared_ptr<AudioStreamTrack> getAudioStreamTrackJni(JNIEnv *env,
-                                                         jstring id) {
+std::shared_ptr<AudioContainer> getAudioContainerJni(JNIEnv *env, jstring id) {
 	const char *idChars = env->GetStringUTFChars(id, nullptr);
 	std::string idStr(idChars);
 	env->ReleaseStringUTFChars(id, idChars);
 	if (idStr.empty()) {
 		return nullptr;
 	}
-	return getAudioStreamTrack(idStr);
+	return getAudioContainer(idStr);
 }
 
 extern "C" {
 
 JNIEXPORT jobject JNICALL
-Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
-                                                        jstring id) {
-	auto videoStreamTrack = getVideoStreamTrackJni(env, id);
-	if (!videoStreamTrack) {
+Java_com_webrtc_WebrtcFabricManager_getFrame(JNIEnv *env, jobject, jstring id) {
+	auto container = getVideoContainerJni(env, id);
+	if (!container) {
 		return nullptr;
 	}
-	auto frame = videoStreamTrack->popVideo(AV_PIX_FMT_RGBA);
+	auto frame = container->popVideo(AV_PIX_FMT_RGBA);
 	if (!frame) {
 		return nullptr;
 	}
@@ -78,11 +75,12 @@ Java_com_webrtc_WebrtcFabricManager_popVideoStreamTrack(JNIEnv *env, jobject,
 	env->DeleteLocalRef(bitmapConfig);
 	return bitmap;
 }
-JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
-    JNIEnv *env, jobject, jstring id, jobject image) {
+JNIEXPORT void JNICALL Java_com_webrtc_Camera_processFrame(JNIEnv *env, jobject,
+                                                           jstring id,
+                                                           jobject image) {
 
-	auto videoStreamTrack = getVideoStreamTrackJni(env, id);
-	if (!videoStreamTrack) {
+	auto container = getVideoContainerJni(env, id);
+	if (!container) {
 		return;
 	}
 
@@ -162,16 +160,17 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_pushVideoStreamTrack(
 	env->DeleteLocalRef(imageClass);
 	env->DeleteLocalRef(planeClass);
 
-	videoStreamTrack->push(frame);
+	container->push(frame);
 }
 
-JNIEXPORT jbyteArray JNICALL
-Java_com_webrtc_Speaker_popAudioStreamTrack(JNIEnv *env, jobject, jstring id) {
-	auto audioStreamTrack = getAudioStreamTrackJni(env, id);
-	if (!audioStreamTrack) {
+JNIEXPORT jbyteArray JNICALL Java_com_webrtc_Sound_getFrame(JNIEnv *env,
+                                                              jobject,
+                                                              jstring id) {
+	auto container = getAudioContainerJni(env, id);
+	if (!container) {
 		return nullptr;
 	}
-	auto frame = audioStreamTrack->popAudio(AV_SAMPLE_FMT_S16, 48000, 2);
+	auto frame = container->popAudio(AV_SAMPLE_FMT_S16, 48000, 2);
 	if (!frame) {
 		return nullptr;
 	}
@@ -184,13 +183,13 @@ Java_com_webrtc_Speaker_popAudioStreamTrack(JNIEnv *env, jobject, jstring id) {
 	return byteArray;
 }
 
-JNIEXPORT void JNICALL Java_com_webrtc_MicroPhone_pushAudioStreamTrack(
+JNIEXPORT void JNICALL Java_com_webrtc_Microphone_processFrame(
     JNIEnv *env, jobject, jstring id, jbyteArray audioBuffer, jint size) {
 	static bool isFirstFrame = true;
 	static auto baseTimestamp = std::chrono::system_clock::now();
 
-	auto audioStreamTrack = getAudioStreamTrackJni(env, id);
-	if (!audioStreamTrack) {
+	auto container = getAudioContainerJni(env, id);
+	if (!container) {
 		return;
 	}
 
@@ -211,7 +210,7 @@ JNIEXPORT void JNICALL Java_com_webrtc_MicroPhone_pushAudioStreamTrack(
 	memcpy(frame->data[0], audioData, size);
 	env->ReleaseByteArrayElements(audioBuffer, audioData, JNI_ABORT);
 
-	audioStreamTrack->push(frame);
+	container->push(frame);
 }
 }
 } // namespace facebook::react

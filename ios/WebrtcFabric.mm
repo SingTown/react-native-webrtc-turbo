@@ -1,5 +1,5 @@
 #import "WebrtcFabric.h"
-#import "MediaStreamTrack.h"
+#import "MediaContainer.h"
 #import "AudioSession.h"
 
 #import <react/renderer/components/WebrtcSpec/ComponentDescriptors.h>
@@ -19,8 +19,8 @@ using namespace facebook::react;
   UIView * _view;
   UIImageView * _imageView;
   CIContext * _ciContext;
-  std::string _currentVideoStreamTrackId;
-  std::string _currentAudioStreamTrackId;
+  std::string _currentVideoContainer;
+  std::string _currentAudioContainer;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -52,16 +52,16 @@ using namespace facebook::react;
   
   const auto &oldViewProps = *std::static_pointer_cast<WebrtcFabricProps const>(_props);
   const auto &newViewProps = *std::static_pointer_cast<WebrtcFabricProps const>(props);
-  if (oldViewProps.videoStreamTrackId != newViewProps.videoStreamTrackId) {
-    _currentVideoStreamTrackId = newViewProps.videoStreamTrackId;
+  if (oldViewProps.videoContainer != newViewProps.videoContainer) {
+    _currentVideoContainer = newViewProps.videoContainer;
   }
-  if (oldViewProps.audioStreamTrackId != newViewProps.audioStreamTrackId) {
-    _currentAudioStreamTrackId = newViewProps.audioStreamTrackId;
+  if (oldViewProps.audioContainer != newViewProps.audioContainer) {
+    _currentAudioContainer = newViewProps.audioContainer;
     AudioSession *audioSession = [AudioSession sharedInstance];
-    [audioSession soundPop:
-     [NSString stringWithUTF8String:oldViewProps.audioStreamTrackId.c_str()]];
-    [audioSession soundPush:
-     [NSString stringWithUTF8String:_currentAudioStreamTrackId.c_str()]];
+    [audioSession soundRemoveContainer:
+     [NSString stringWithUTF8String:oldViewProps.audioContainer.c_str()]];
+    [audioSession soundAddContainer:
+     [NSString stringWithUTF8String:_currentAudioContainer.c_str()]];
   }
   
   [super updateProps:props oldProps:oldProps];
@@ -69,8 +69,8 @@ using namespace facebook::react;
 
 - (void)prepareForRecycle {
   AudioSession *audioSession = [AudioSession sharedInstance];
-  [audioSession soundPop:
-   [NSString stringWithUTF8String:_currentAudioStreamTrackId.c_str()]];
+  [audioSession soundRemoveContainer:
+   [NSString stringWithUTF8String:_currentAudioContainer.c_str()]];
   [super prepareForRecycle];
 }
 
@@ -92,15 +92,15 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void)
 }
 
 - (void)updateVideoFrame {
-  if (self->_currentVideoStreamTrackId.empty()) {
+  if (self->_currentVideoContainer.empty()) {
     return;
   }
   
-  auto videoStream = getVideoStreamTrack(self->_currentVideoStreamTrackId);
-  if (!videoStream) {
+  auto container = getVideoContainer(self->_currentVideoContainer);
+  if (!container) {
     return;
   }
-  auto frame = videoStream->popVideo(AV_PIX_FMT_RGB24);
+  auto frame = container->popVideo(AV_PIX_FMT_RGB24);
   if (!frame) {
     return;
   }

@@ -23,10 +23,10 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
   private val frameHandler = Handler(Looper.getMainLooper())
   private val frameExecutor: ExecutorService = Executors.newCachedThreadPool()
   private var currentView: WebrtcFabric? = null
-  private var videoStreamTrackId: String = ""
-  private var audioStreamTrackId: String = ""
+  private var videoContainer: String = ""
+  private var audioContainer: String = ""
 
-  external fun popVideoStreamTrack(id: String): Bitmap?
+  external fun getFrame(container: String): Bitmap?
 
   init {
     mDelegate = WebrtcFabricManagerDelegate(this)
@@ -37,7 +37,7 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
     frameExecutor.execute {
       currentView?.let { view ->
         try {
-          val bitmap = popVideoStreamTrack(videoStreamTrackId)
+          val bitmap = getFrame(videoContainer)
             ?: return@execute
           frameHandler.post {
             view.updateFrame(bitmap)
@@ -69,23 +69,23 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
     }, 10L)
   }
 
-  @ReactProp(name = "videoStreamTrackId")
-  override fun setVideoStreamTrackId(view: WebrtcFabric, value: String?) {
+  @ReactProp(name = "videoContainer")
+  override fun setVideoContainer(view: WebrtcFabric, value: String?) {
     currentView = view
-    this.videoStreamTrackId = value ?: ""
+    this.videoContainer = value ?: ""
   }
 
-  @ReactProp(name = "audioStreamTrackId")
-  override fun setAudioStreamTrackId(view: WebrtcFabric, value: String?) {
+  @ReactProp(name = "audioContainer")
+  override fun setAudioContainer(view: WebrtcFabric, value: String?) {
     val current = value ?: ""
-    val old = this.audioStreamTrackId
+    val old = this.audioContainer
     if (old == current) {
       return
     }
 
-    Speaker.pop(old)
-    Speaker.push(current)
-    this.audioStreamTrackId = current
+    Sound.removeContainer(old)
+    Sound.addContainer(current)
+    this.audioContainer = current
   }
 
   companion object {

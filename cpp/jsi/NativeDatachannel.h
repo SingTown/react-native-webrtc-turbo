@@ -21,14 +21,13 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	rtc::PeerConnection::State getPeerConnectionState(jsi::Runtime &rt,
 	                                                  const std::string &pc);
 
-	std::string createMediaStreamTrack(jsi::Runtime &rt,
-	                                   const std::string &kind);
-	void stopMediaStreamTrack(jsi::Runtime &rt, const std::string &ms);
+	std::string createMediaContainer(jsi::Runtime &rt, const std::string &kind);
+	void removeMediaContainer(jsi::Runtime &rt, const std::string &id);
 
 	std::string createRTCRtpTransceiver(
 	    jsi::Runtime &rt, const std::string &pc, int index,
 	    const std::string &kind, rtc::Description::Direction direction,
-	    const std::string &sendms, const std::string &recvms,
+	    const std::string &sendContainerId, const std::string &recvContainerId,
 	    const std::vector<std::string> &msids,
 	    const std::optional<std::string> &trackid);
 	void stopRTCTransceiver(jsi::Runtime &rt, const std::string &tr);

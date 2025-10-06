@@ -11,7 +11,7 @@ import android.os.HandlerThread
 import androidx.annotation.RequiresPermission
 
 object Camera {
-  external fun pushVideoStreamTrack(mediaStreamTrackId: String, image: Image)
+  external fun processFrame(mediaStreamTrackId: String, image: Image)
 
   private const val DEFAULT_WIDTH = 1280
   private const val DEFAULT_HEIGHT = 720
@@ -85,7 +85,7 @@ object Camera {
       val image = reader.acquireNextImage()
       image.use {
         for (container in containers) {
-          pushVideoStreamTrack(container, it)
+          processFrame(container, it)
         }
       }
     }
@@ -110,21 +110,21 @@ object Camera {
   }
 
   @RequiresPermission(Manifest.permission.CAMERA)
-  fun push(container: String) {
-    if (containers.contains(container)) {
+  fun addContainer(id: String) {
+    if (containers.contains(id)) {
       return
     }
-    containers.add(container)
+    containers.add(id)
     if (containers.size == 1) {
       start()
     }
   }
 
-  fun pop(container: String) {
-    if (!containers.contains(container)) {
+  fun removeContainer(id: String) {
+    if (!containers.contains(id)) {
       return
     }
-    containers.remove(container)
+    containers.remove(id)
     if (containers.isEmpty()) {
       stop()
     }

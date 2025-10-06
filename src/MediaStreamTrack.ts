@@ -15,7 +15,7 @@ export class MediaStreamTrack {
   id: string;
   readonly kind: 'audio' | 'video';
   readonly _device: MediaStreamTrackDevice;
-  readonly _sourceId: string;
+  readonly _containerId: string;
 
   constructor(device: MediaStreamTrackDevice) {
     this.id = uuidv4();
@@ -31,29 +31,21 @@ export class MediaStreamTrack {
     } else {
       throw new Error('MediaStreamTrack device must be camera or microphone');
     }
-    this._sourceId = NativeDatachannel.createMediaStreamTrack(this.kind);
+    this._containerId = NativeDatachannel.createMediaContainer(this.kind);
 
     if (device === 'camera') {
-      NativeMediaDevice.cameraPush(this._sourceId);
+      NativeMediaDevice.cameraAddContainer(this._containerId);
     } else if (device === 'microphone') {
-      NativeMediaDevice.microphonePush(this._sourceId);
-      // } else if (device === 'screen') {
-      //   this.kind = 'video';
-      //   // this._sourceId = NativeMediaDevice.createScreen();
-      //   this._sourceId = NativeDatachannel.createMediaStreamTrack(this.kind);
-      // } else if (device === 'sound') {
-      //   this.kind = 'audio';
-      //   // this._sourceId = NativeMediaDevice.createSound();
-      //   this._sourceId = NativeDatachannel.createMediaStreamTrack(this.kind);
+      NativeMediaDevice.microphoneAddContainer(this._containerId);
     }
   }
 
   stop() {
-    NativeDatachannel.stopMediaStreamTrack(this._sourceId);
+    NativeDatachannel.removeMediaContainer(this._containerId);
     if (this._device === 'camera') {
-      NativeMediaDevice.cameraPop(this._sourceId);
+      NativeMediaDevice.cameraRemoveContainer(this._containerId);
     } else if (this._device === 'microphone') {
-      NativeMediaDevice.microphonePop(this._sourceId);
+      NativeMediaDevice.microphoneRemoveContainer(this._containerId);
     }
   }
 }

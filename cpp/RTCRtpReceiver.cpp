@@ -4,7 +4,7 @@
 #include <set>
 
 void SenderOnOpen(std::shared_ptr<rtc::Track> track,
-                  std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
+                  std::shared_ptr<MediaContainer> mediaContainer,
                   rtc::Description::Media::RtpMap rtpMap) {
 	const size_t mtu = 1200;
 	auto ssrcs = track->description().getSSRCs();
@@ -43,16 +43,16 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track,
 	}
 
 	auto encoder = std::make_shared<Encoder>(avCodecId);
-	mediaStreamTrack->onPush(
-	    [mediaStreamTrack, encoder, track,
+	mediaContainer->onPush(
+	    [mediaContainer, encoder, track,
 	     rtpMap]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
 		    while (1) {
 			    std::shared_ptr<AVFrame> frame;
 			    if (rtpMap.format == "H264" || rtpMap.format == "H265") {
-				    frame = mediaStreamTrack->popVideo(AV_PIX_FMT_NV12);
+				    frame = mediaContainer->popVideo(AV_PIX_FMT_NV12);
 			    } else if (rtpMap.format == "opus") {
 				    frame =
-				        mediaStreamTrack->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
+				        mediaContainer->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
 			    }
 			    if (!frame) {
 				    return;
@@ -71,13 +71,13 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track,
 
 void SenderOnClose(
     [[maybe_unused]] std::shared_ptr<rtc::Track> track,
-    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack) {
+    [[maybe_unused]] std::shared_ptr<MediaContainer> mediaContainer) {
 
-	mediaStreamTrack->onPush(nullptr);
+	mediaContainer->onPush(nullptr);
 }
 
 void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
-                    std::shared_ptr<MediaStreamTrack> mediaStreamTrack,
+                    std::shared_ptr<MediaContainer> mediaContainer,
                     rtc::Description::Media::RtpMap rtpMap) {
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
@@ -101,8 +101,8 @@ void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
 
 	auto decoder = std::make_shared<Decoder>(avCodecId);
 
-	track->onFrame([decoder, mediaStreamTrack](rtc::binary binary,
-	                                           rtc::FrameInfo info) {
+	track->onFrame([decoder, mediaContainer](rtc::binary binary,
+	                                         rtc::FrameInfo info) {
 		auto packet = createAVPacket();
 
 		if (av_new_packet(packet.get(), static_cast<int>(binary.size())) < 0) {
@@ -115,24 +115,25 @@ void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
 
 		auto frames = decoder->decode(packet);
 		for (auto frame : frames) {
-			mediaStreamTrack->push(frame);
+			mediaContainer->push(frame);
 		}
 	});
 }
 
 void ReceiverOnClose(
     [[maybe_unused]] std::shared_ptr<rtc::Track> track,
-    [[maybe_unused]] std::shared_ptr<MediaStreamTrack> mediaStreamTrack) {}
+    [[maybe_unused]] std::shared_ptr<MediaContainer> mediaContainer) {}
 
 std::shared_ptr<rtc::Track>
 addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
                const std::string &kind, rtc::Description::Direction direction,
-               const std::string &sendms, const std::string &recvms,
+               const std::string &sendContainerId,
+               const std::string &recvContainerId,
                const std::vector<std::string> &msids,
                const std::optional<std::string> &trackid) {
 
-	auto sendStream = getMediaStreamTrack(sendms);
-	auto recvStream = getMediaStreamTrack(recvms);
+	auto sendContainer = getMediaContainer(sendContainerId);
+	auto recvContainer = getMediaContainer(recvContainerId);
 
 	std::shared_ptr<rtc::Track> track;
 	auto remoteDesc = peerConnection->remoteDescription();
@@ -150,17 +151,17 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 		track = peerConnection->addTrack(std::move(*media));
 	}
 
-	track->onClosed([track, sendStream, recvStream]() {
-		if (sendStream) {
-			SenderOnClose(track, sendStream);
+	track->onClosed([track, sendContainer, recvContainer]() {
+		if (sendContainer) {
+			SenderOnClose(track, sendContainer);
 		}
 
-		if (recvStream) {
-			ReceiverOnClose(track, recvStream);
+		if (recvContainer) {
+			ReceiverOnClose(track, recvContainer);
 		}
 	});
 
-	track->onOpen([peerConnection, track, sendStream, recvStream]() {
+	track->onOpen([peerConnection, track, sendContainer, recvContainer]() {
 		auto rtpMap = negotiateRtpMap(
 		    peerConnection->remoteDescription().value(),
 		    peerConnection->localDescription().value(), track->mid());
@@ -168,14 +169,14 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 			return;
 		}
 
-		if (sendStream) {
-			sendStream->clear();
-			SenderOnOpen(track, sendStream, rtpMap.value());
+		if (sendContainer) {
+			sendContainer->clear();
+			SenderOnOpen(track, sendContainer, rtpMap.value());
 		}
 
-		if (recvStream) {
-			recvStream->clear();
-			ReceiverOnOpen(track, recvStream, rtpMap.value());
+		if (recvContainer) {
+			recvContainer->clear();
+			ReceiverOnOpen(track, recvContainer, rtpMap.value());
 		}
 	});
 	return track;

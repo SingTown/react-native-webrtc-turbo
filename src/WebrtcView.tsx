@@ -10,13 +10,11 @@ type WebrtcViewProps = {
 export function WebrtcView(props: WebrtcViewProps) {
   const videoTrack = props.stream?.getVideoTracks()[0];
   const audioTrack = props.stream?.getAudioTracks()[0];
-  let videoStreamTrackId = videoTrack ? videoTrack._sourceId : '';
-  let audioStreamTrackId = audioTrack ? audioTrack._sourceId : '';
   return (
     <WebrtcFabric
       style={props.style}
-      videoStreamTrackId={videoStreamTrackId}
-      audioStreamTrackId={audioStreamTrackId}
+      videoContainer={videoTrack ? videoTrack._containerId : ''}
+      audioContainer={audioTrack ? audioTrack._containerId : ''}
     />
   );
 }
