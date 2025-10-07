@@ -47,6 +47,13 @@ export default function App() {
         ],
       });
 
+      peerconnection.onconnectionstatechange = () => {
+        console.log(
+          'peerconnection connection state:',
+          peerconnection?.connectionState
+        );
+      };
+
       setPc(peerconnection);
 
       let tempLocalCandidates: RTCIceCandidate[] = [];

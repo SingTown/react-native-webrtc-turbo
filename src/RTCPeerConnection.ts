@@ -168,6 +168,9 @@ export class RTCPeerConnection {
     this.onLocalCandidateCallback.remove();
     this.onTrackCallback.remove();
     this.streams.clear();
+    for (const t of this.transceivers) {
+      t.stop();
+    }
     NativeDatachannel.closePeerConnection(this.pc);
   }
 

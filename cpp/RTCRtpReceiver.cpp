@@ -42,6 +42,8 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track,
 		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
 
+	track->onClosed([mediaContainer]() { mediaContainer->onPush(nullptr); });
+
 	auto encoder = std::make_shared<Encoder>(avCodecId);
 	mediaContainer->onPush(
 	    [mediaContainer, encoder, track,
@@ -59,7 +61,7 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track,
 			    }
 			    auto packets = encoder->encode(frame);
 			    for (auto packet : packets) {
-				    if (track->isClosed()) {
+				    if (!track->isOpen()) {
 					    return;
 				    }
 				    track->sendFrame((const rtc::byte *)packet->data,
@@ -67,13 +69,6 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track,
 			    }
 		    }
 	    });
-}
-
-void SenderOnClose(
-    [[maybe_unused]] std::shared_ptr<rtc::Track> track,
-    [[maybe_unused]] std::shared_ptr<MediaContainer> mediaContainer) {
-
-	mediaContainer->onPush(nullptr);
 }
 
 void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
@@ -150,16 +145,6 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 		}
 		track = peerConnection->addTrack(std::move(*media));
 	}
-
-	track->onClosed([track, sendContainer, recvContainer]() {
-		if (sendContainer) {
-			SenderOnClose(track, sendContainer);
-		}
-
-		if (recvContainer) {
-			ReceiverOnClose(track, recvContainer);
-		}
-	});
 
 	track->onOpen([peerConnection, track, sendContainer, recvContainer]() {
 		auto rtpMap = negotiateRtpMap(
