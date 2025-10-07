@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 (2025-10-07)
+
+* fix: transceiver stop crash ([18b8746](https://github.com/SingTown/react-native-webrtc-turbo/commit/18b8746))
+* feat: camera session multi container ([1fdfa38](https://github.com/SingTown/react-native-webrtc-turbo/commit/1fdfa38))
+* feat: sendrecv example ([93e80ef](https://github.com/SingTown/react-native-webrtc-turbo/commit/93e80ef))
+* chore: refactor name ([65d1d29](https://github.com/SingTown/react-native-webrtc-turbo/commit/65d1d29))
+
 ## 0.8.0 (2025-09-26)
 
 * fix: android build ([da86702](https://github.com/SingTown/react-native-webrtc-turbo/commit/da86702))
