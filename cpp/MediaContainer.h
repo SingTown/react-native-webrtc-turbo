@@ -18,6 +18,7 @@ class MediaContainer {
 	std::function<void(std::shared_ptr<AVFrame>)> onPushCallback;
 
   public:
+	bool enabled = true;
 	MediaContainer() = default;
 	virtual ~MediaContainer() { onPushCallback = nullptr; }
 	virtual std::string type() = 0;
@@ -29,6 +30,9 @@ class MediaContainer {
 
 	void onPush(std::function<void(std::shared_ptr<AVFrame>)> callback) {
 		std::lock_guard lock(mutex);
+		if (!enabled) {
+			return;
+		}
 		onPushCallback = callback;
 	}
 };
@@ -52,6 +56,9 @@ class VideoContainer : public MediaContainer {
 	std::string type() override { return "video"; }
 
 	void push(std::shared_ptr<AVFrame> frame) override {
+		if (!enabled) {
+			return;
+		}
 		std::function<void(std::shared_ptr<AVFrame>)> callbackCopy;
 		{
 			std::lock_guard lock(mutex);
@@ -72,6 +79,9 @@ class VideoContainer : public MediaContainer {
 
 	std::shared_ptr<AVFrame> pop() {
 		std::lock_guard lock(mutex);
+		if (!enabled) {
+			return nullptr;
+		}
 		if (queue.empty()) {
 			return nullptr;
 		}
@@ -113,6 +123,9 @@ class AudioContainer : public MediaContainer {
 	std::string type() override { return "audio"; }
 
 	void push(std::shared_ptr<AVFrame> frame) override {
+		if (!enabled) {
+			return;
+		}
 		std::function<void(std::shared_ptr<AVFrame>)> callbackCopy;
 		{
 			std::lock_guard lock(mutex);
@@ -151,6 +164,9 @@ class AudioContainer : public MediaContainer {
 
 	std::shared_ptr<AVFrame> popAudio(AVSampleFormat format, int sampleRate,
 	                                  int channels) override {
+		if (!enabled) {
+			return nullptr;
+		}
 		std::lock_guard lock(mutex);
 		if (pcm.size() < FRAME_SIZE * CHANNELS) {
 			return nullptr;

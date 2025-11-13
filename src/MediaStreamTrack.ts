@@ -11,7 +11,6 @@ export type MediaStreamTrackDevice =
   | 'audio';
 
 export class MediaStreamTrack {
-  enabled: boolean = true;
   id: string;
   readonly kind: 'audio' | 'video';
   readonly _device: MediaStreamTrackDevice;
@@ -38,6 +37,14 @@ export class MediaStreamTrack {
     } else if (device === 'microphone') {
       NativeMediaDevice.microphoneAddContainer(this._containerId);
     }
+  }
+
+  get enabled(): boolean {
+    return NativeDatachannel.getMediaContainerEnabled(this._containerId);
+  }
+
+  set enabled(value: boolean) {
+    NativeDatachannel.setMediaContainerEnabled(this._containerId, value);
   }
 
   stop() {

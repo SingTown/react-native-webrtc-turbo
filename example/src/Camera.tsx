@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Button } from 'react-native';
+
 import {
   WebrtcView,
   MediaStream,
@@ -32,6 +34,46 @@ export default function Camera() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <WebrtcView style={styles.player} stream={stream} />
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Enable Video"
+            onPress={() => {
+              stream?.getVideoTracks().forEach((track) => {
+                track.enabled = true;
+              });
+            }}
+          />
+        </View>
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Disable Video"
+            onPress={() => {
+              stream?.getVideoTracks().forEach((track) => {
+                track.enabled = false;
+              });
+            }}
+          />
+        </View>
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Enable Audio"
+            onPress={() => {
+              stream?.getAudioTracks().forEach((track) => {
+                track.enabled = true;
+              });
+            }}
+          />
+        </View>
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Disable Audio"
+            onPress={() => {
+              stream?.getAudioTracks().forEach((track) => {
+                track.enabled = false;
+              });
+            }}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -48,5 +90,11 @@ const styles = StyleSheet.create({
   },
   player: {
     height: 300,
+  },
+  buttonContainer: {
+    height: 44,
+    margin: 5,
+    justifyContent: 'center',
+    backgroundColor: '#a8a4a4a3',
   },
 });

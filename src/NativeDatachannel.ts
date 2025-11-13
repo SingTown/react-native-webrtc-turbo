@@ -34,6 +34,8 @@ export interface Spec extends TurboModule {
 
   createMediaContainer(kind: string): string;
   removeMediaContainer(id: string): void;
+  setMediaContainerEnabled(id: string, enabled: boolean): void;
+  getMediaContainerEnabled(id: string): boolean;
 
   createRTCRtpTransceiver(
     pc: string,

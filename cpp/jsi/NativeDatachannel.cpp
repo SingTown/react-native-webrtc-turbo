@@ -135,6 +135,24 @@ void NativeDatachannel::removeMediaContainer([[maybe_unused]] jsi::Runtime &rt,
 	eraseMediaContainer(id);
 }
 
+bool NativeDatachannel::getMediaContainerEnabled(
+    [[maybe_unused]] jsi::Runtime &rt, const std::string &id) {
+	auto mediaContainer = getMediaContainer(id);
+	if (!mediaContainer) {
+		throw std::invalid_argument("MediaContainer ID does not exist");
+	}
+	return mediaContainer->enabled;
+}
+
+void NativeDatachannel::setMediaContainerEnabled(
+    [[maybe_unused]] jsi::Runtime &rt, const std::string &id, bool enabled) {
+	auto mediaContainer = getMediaContainer(id);
+	if (!mediaContainer) {
+		throw std::invalid_argument("MediaContainer ID does not exist");
+	}
+	mediaContainer->enabled = enabled;
+}
+
 std::string NativeDatachannel::createRTCRtpTransceiver(
     [[maybe_unused]] jsi::Runtime &rt, const std::string &pc, int index,
     const std::string &kind, rtc::Description::Direction direction,

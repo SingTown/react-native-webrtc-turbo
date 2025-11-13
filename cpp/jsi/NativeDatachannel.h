@@ -23,6 +23,9 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 
 	std::string createMediaContainer(jsi::Runtime &rt, const std::string &kind);
 	void removeMediaContainer(jsi::Runtime &rt, const std::string &id);
+	bool getMediaContainerEnabled(jsi::Runtime &rt, const std::string &id);
+	void setMediaContainerEnabled(jsi::Runtime &rt, const std::string &id,
+	                              bool enabled);
 
 	std::string createRTCRtpTransceiver(
 	    jsi::Runtime &rt, const std::string &pc, int index,
