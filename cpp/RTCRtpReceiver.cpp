@@ -1,10 +1,10 @@
 #include "RTCRtpReceiver.h"
 #include "ffmpeg.h"
+#include "framepipe.h"
 #include "negotiate.h"
 #include <set>
 
-void SenderOnOpen(std::shared_ptr<rtc::Track> track,
-                  std::shared_ptr<MediaContainer> mediaContainer,
+void SenderOnOpen(std::shared_ptr<rtc::Track> track, const std::string &pipeId,
                   rtc::Description::Media::RtpMap rtpMap) {
 	const size_t mtu = 1200;
 	auto ssrcs = track->description().getSSRCs();
@@ -42,37 +42,26 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track,
 		throw std::runtime_error("Unsupported codec: " + rtpMap.format);
 	}
 
-	track->onClosed([mediaContainer]() { mediaContainer->onPush(nullptr); });
-
 	auto encoder = std::make_shared<Encoder>(avCodecId);
-	mediaContainer->onPush(
-	    [mediaContainer, encoder, track,
-	     rtpMap]([[maybe_unused]] std::shared_ptr<AVFrame> frame) {
-		    while (1) {
-			    std::shared_ptr<AVFrame> frame;
-			    if (rtpMap.format == "H264" || rtpMap.format == "H265") {
-				    frame = mediaContainer->popVideo(AV_PIX_FMT_NV12);
-			    } else if (rtpMap.format == "opus") {
-				    frame =
-				        mediaContainer->popAudio(AV_SAMPLE_FMT_FLT, 48000, 2);
-			    }
-			    if (!frame) {
+	int subscriptionId =
+	    subscribe(pipeId, [encoder, track](std::shared_ptr<AVFrame> frame) {
+		    if (!frame) {
+			    return;
+		    }
+		    auto packets = encoder->encode(frame);
+		    for (auto packet : packets) {
+			    if (!track->isOpen()) {
 				    return;
 			    }
-			    auto packets = encoder->encode(frame);
-			    for (auto packet : packets) {
-				    if (!track->isOpen()) {
-					    return;
-				    }
-				    track->sendFrame((const rtc::byte *)packet->data,
-				                     packet->size, packet->pts);
-			    }
+			    track->sendFrame((const rtc::byte *)packet->data, packet->size,
+			                     packet->pts);
 		    }
 	    });
+	track->onClosed([subscriptionId]() { unsubscribe(subscriptionId); });
 }
 
 void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
-                    std::shared_ptr<MediaContainer> mediaContainer,
+                    const std::string &pipeId,
                     rtc::Description::Media::RtpMap rtpMap) {
 	AVCodecID avCodecId;
 	auto separator = rtc::NalUnit::Separator::StartSequence;
@@ -96,8 +85,7 @@ void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
 
 	auto decoder = std::make_shared<Decoder>(avCodecId);
 
-	track->onFrame([decoder, mediaContainer](rtc::binary binary,
-	                                         rtc::FrameInfo info) {
+	track->onFrame([decoder, pipeId](rtc::binary binary, rtc::FrameInfo info) {
 		auto packet = createAVPacket();
 
 		if (av_new_packet(packet.get(), static_cast<int>(binary.size())) < 0) {
@@ -110,25 +98,17 @@ void ReceiverOnOpen(std::shared_ptr<rtc::Track> track,
 
 		auto frames = decoder->decode(packet);
 		for (auto frame : frames) {
-			mediaContainer->push(frame);
+			publish(pipeId, frame);
 		}
 	});
 }
 
-void ReceiverOnClose(
-    [[maybe_unused]] std::shared_ptr<rtc::Track> track,
-    [[maybe_unused]] std::shared_ptr<MediaContainer> mediaContainer) {}
-
 std::shared_ptr<rtc::Track>
 addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
                const std::string &kind, rtc::Description::Direction direction,
-               const std::string &sendContainerId,
-               const std::string &recvContainerId,
+               const std::string &sendPipeId, const std::string &recvPipeId,
                const std::vector<std::string> &msids,
                const std::optional<std::string> &trackid) {
-
-	auto sendContainer = getMediaContainer(sendContainerId);
-	auto recvContainer = getMediaContainer(recvContainerId);
 
 	std::shared_ptr<rtc::Track> track;
 	auto remoteDesc = peerConnection->remoteDescription();
@@ -146,7 +126,7 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 		track = peerConnection->addTrack(std::move(*media));
 	}
 
-	track->onOpen([peerConnection, track, sendContainer, recvContainer]() {
+	track->onOpen([peerConnection, track, sendPipeId, recvPipeId]() {
 		auto rtpMap = negotiateRtpMap(
 		    peerConnection->remoteDescription().value(),
 		    peerConnection->localDescription().value(), track->mid());
@@ -154,14 +134,12 @@ addTransceiver(std::shared_ptr<rtc::PeerConnection> peerConnection, int index,
 			return;
 		}
 
-		if (sendContainer) {
-			sendContainer->clear();
-			SenderOnOpen(track, sendContainer, rtpMap.value());
+		if (!sendPipeId.empty()) {
+			SenderOnOpen(track, sendPipeId, rtpMap.value());
 		}
 
-		if (recvContainer) {
-			recvContainer->clear();
-			ReceiverOnOpen(track, recvContainer, rtpMap.value());
+		if (!recvPipeId.empty()) {
+			ReceiverOnOpen(track, recvPipeId, rtpMap.value());
 		}
 	});
 	return track;

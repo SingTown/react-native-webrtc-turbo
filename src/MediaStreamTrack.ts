@@ -11,11 +11,12 @@ export type MediaStreamTrackDevice =
   | 'audio';
 
 export class MediaStreamTrack {
-  enabled: boolean = true;
   id: string;
   readonly kind: 'audio' | 'video';
   readonly _device: MediaStreamTrackDevice;
-  readonly _containerId: string;
+  readonly _srcPipeId: string;
+  readonly _dstPipeId: string;
+  _subscriptionId: number = -1;
 
   constructor(device: MediaStreamTrackDevice) {
     this.id = uuidv4();
@@ -31,21 +32,52 @@ export class MediaStreamTrack {
     } else {
       throw new Error('MediaStreamTrack device must be camera or microphone');
     }
-    this._containerId = NativeDatachannel.createMediaContainer(this.kind);
+    this._srcPipeId = uuidv4();
+    this._dstPipeId = uuidv4();
+    this._enable();
 
     if (device === 'camera') {
-      NativeMediaDevice.cameraAddContainer(this._containerId);
+      NativeMediaDevice.cameraAddPipe(this._srcPipeId);
     } else if (device === 'microphone') {
-      NativeMediaDevice.microphoneAddContainer(this._containerId);
+      NativeMediaDevice.microphoneAddPipe(this._srcPipeId);
+    }
+  }
+
+  _enable() {
+    if (this._subscriptionId > 0) {
+      return;
+    }
+    this._subscriptionId = NativeDatachannel.forwardPipe(
+      this._srcPipeId,
+      this._dstPipeId
+    );
+  }
+
+  _disable() {
+    if (this._subscriptionId < 0) {
+      return;
+    }
+    NativeDatachannel.unsubscribe(this._subscriptionId);
+    this._subscriptionId = -1;
+  }
+
+  get enabled(): boolean {
+    return this._subscriptionId > 0;
+  }
+
+  set enabled(value: boolean) {
+    if (value) {
+      this._enable();
+    } else {
+      this._disable();
     }
   }
 
   stop() {
-    NativeDatachannel.removeMediaContainer(this._containerId);
     if (this._device === 'camera') {
-      NativeMediaDevice.cameraRemoveContainer(this._containerId);
+      NativeMediaDevice.cameraRemovePipe(this._srcPipeId);
     } else if (this._device === 'microphone') {
-      NativeMediaDevice.microphoneRemoveContainer(this._containerId);
+      NativeMediaDevice.microphoneRemovePipe(this._srcPipeId);
     }
   }
 }

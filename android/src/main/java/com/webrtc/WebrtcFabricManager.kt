@@ -4,6 +4,9 @@ import android.graphics.*
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.uimanager.SimpleViewManager
@@ -23,26 +26,37 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
   private val frameHandler = Handler(Looper.getMainLooper())
   private val frameExecutor: ExecutorService = Executors.newCachedThreadPool()
   private var currentView: WebrtcFabric? = null
-  private var videoContainer: String = ""
-  private var audioContainer: String = ""
+  private var videoSubscriptionId: Int = -1
+  private var audioSubscriptionId: Int = -1
+  private var videoPipeId: String = ""
+  private var audioPipeId: String = ""
+  private var audioTrack = AudioTrack(
+    AudioManager.STREAM_MUSIC,
+    48000,
+    AudioFormat.CHANNEL_OUT_STEREO,
+    AudioFormat.ENCODING_PCM_16BIT,
+    AudioTrack.getMinBufferSize(
+      48000,
+      AudioFormat.CHANNEL_OUT_STEREO,
+      AudioFormat.ENCODING_PCM_16BIT
+    ),
+    AudioTrack.MODE_STREAM
+  )
 
-  external fun getFrame(container: String): Bitmap?
+  external fun subscribeVideo(pipeId: String): Int
+  external fun subscribeAudio(pipeId: String): Int
+  external fun unsubscribe(subscriptionId: Int)
 
   init {
     mDelegate = WebrtcFabricManagerDelegate(this)
-    scheduleNextVideoFrame()
   }
 
-  private fun updateVideoFrame() {
+  private fun updateFrame(bitmap: Bitmap) {
     frameExecutor.execute {
       currentView?.let { view ->
         try {
-          val bitmap = getFrame(videoContainer)
-            ?: return@execute
-          frameHandler.post {
-            view.updateFrame(bitmap)
-            bitmap.recycle()
-          }
+          view.updateFrame(bitmap)
+          bitmap.recycle()
         } catch (e: Exception) {
           Log.e("WebrtcFabric", "Error updating video frame", e)
         }
@@ -62,30 +76,35 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
     return WebrtcFabric(context)
   }
 
-  private fun scheduleNextVideoFrame() {
-    frameHandler.postDelayed({
-      updateVideoFrame()
-      scheduleNextVideoFrame()
-    }, 10L)
-  }
-
-  @ReactProp(name = "videoContainer")
-  override fun setVideoContainer(view: WebrtcFabric, value: String?) {
+  @ReactProp(name = "videoPipeId")
+  override fun setVideoPipeId(view: WebrtcFabric, value: String?) {
     currentView = view
-    this.videoContainer = value ?: ""
+    var newVideoPipeId = value ?: ""
+    if (this.videoPipeId == newVideoPipeId) {
+      return
+    }
+    if (this.videoSubscriptionId > 0) {
+      this.unsubscribe(this.videoSubscriptionId)
+    }
+    this.videoSubscriptionId = subscribeVideo(newVideoPipeId)
+    this.videoPipeId = newVideoPipeId
   }
 
-  @ReactProp(name = "audioContainer")
-  override fun setAudioContainer(view: WebrtcFabric, value: String?) {
+  @ReactProp(name = "audioPipeId")
+  override fun setAudioPipeId(view: WebrtcFabric, value: String?) {
     val current = value ?: ""
-    val old = this.audioContainer
+    val old = this.audioPipeId
     if (old == current) {
       return
     }
 
-    Sound.removeContainer(old)
-    Sound.addContainer(current)
-    this.audioContainer = current
+    audioTrack.play()
+    if (this.audioSubscriptionId > 0) {
+      this.unsubscribe(this.audioSubscriptionId)
+    }
+
+    this.audioSubscriptionId = subscribeAudio(current)
+    this.audioPipeId = current
   }
 
   companion object {

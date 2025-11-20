@@ -22,6 +22,7 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
           sudo apt-get install -y build-essential cmake pkg-config python3 git
+          sudo apt-get install -y libopus-dev libx264-dev libx265-dev libnuma-dev
 
       - name: Cache 3rdparty output
         id: cache-3rdparty-unittest

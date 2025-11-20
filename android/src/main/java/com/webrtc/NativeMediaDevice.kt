@@ -22,20 +22,20 @@ class NativeMediaDeviceModule(reactContext: ReactApplicationContext) :
 
   @RequiresPermission(Manifest.permission.CAMERA)
   @ReactMethod
-  override fun cameraAddContainer(container: String) {
-    Camera.addContainer(container)
+  override fun cameraAddPipe(pipeId: String) {
+    Camera.addPipe(pipeId)
   }
 
-  override fun cameraRemoveContainer(container: String) {
-    Camera.removeContainer(container)
+  override fun cameraRemovePipe(pipeId: String) {
+    Camera.removePipe(pipeId)
   }
 
-  override fun microphoneAddContainer(container: String) {
-    Microphone.addContainer(container)
+  override fun microphoneAddPipe(pipeId: String) {
+    Microphone.addPipe(pipeId)
   }
 
-  override fun microphoneRemoveContainer(container: String) {
-    Microphone.removeContainer(container)
+  override fun microphoneRemovePipe(pipeId: String) {
+    Microphone.removePipe(pipeId)
   }
 
   companion object {

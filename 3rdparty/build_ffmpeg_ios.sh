@@ -39,7 +39,6 @@ for i in "${!SDKS[@]}"; do
             --disable-shared --enable-static \
             --disable-asm \
             --disable-iconv \
-            --disable-avformat \
             --disable-avdevice \
             --disable-avfilter \
             --enable-swresample \

@@ -1,4 +1,5 @@
-#include "MediaContainer.h"
+#include "ffmpeg.h"
+#include "framepipe.h"
 #include <android/bitmap.h>
 #include <chrono>
 #include <jni.h>
@@ -6,83 +7,121 @@
 
 namespace facebook::react {
 
-std::shared_ptr<VideoContainer> getVideoContainerJni(JNIEnv *env, jstring id) {
-	const char *idChars = env->GetStringUTFChars(id, nullptr);
-	std::string idStr(idChars);
-	env->ReleaseStringUTFChars(id, idChars);
-	if (idStr.empty()) {
-		return nullptr;
-	}
-	return getVideoContainer(idStr);
-}
-
-std::shared_ptr<AudioContainer> getAudioContainerJni(JNIEnv *env, jstring id) {
-	const char *idChars = env->GetStringUTFChars(id, nullptr);
-	std::string idStr(idChars);
-	env->ReleaseStringUTFChars(id, idChars);
-	if (idStr.empty()) {
-		return nullptr;
-	}
-	return getAudioContainer(idStr);
-}
-
 extern "C" {
 
-JNIEXPORT jobject JNICALL
-Java_com_webrtc_WebrtcFabricManager_getFrame(JNIEnv *env, jobject, jstring id) {
-	auto container = getVideoContainerJni(env, id);
-	if (!container) {
-		return nullptr;
-	}
-	auto frame = container->popVideo(AV_PIX_FMT_RGBA);
-	if (!frame) {
-		return nullptr;
-	}
-
-	jclass bitmapConfigClass = env->FindClass("android/graphics/Bitmap$Config");
-	jfieldID argb8888FieldID = env->GetStaticFieldID(
-	    bitmapConfigClass, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
-	jobject bitmapConfig =
-	    env->GetStaticObjectField(bitmapConfigClass, argb8888FieldID);
-	jclass bitmapClass = env->FindClass("android/graphics/Bitmap");
-	jmethodID createBitmapMethodID = env->GetStaticMethodID(
-	    bitmapClass, "createBitmap",
-	    "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
-	jobject bitmap =
-	    env->CallStaticObjectMethod(bitmapClass, createBitmapMethodID,
-	                                frame->width, frame->height, bitmapConfig);
-	AndroidBitmapInfo bitmapInfo;
-	int result = AndroidBitmap_getInfo(env, bitmap, &bitmapInfo);
-	if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
-		throw std::runtime_error("AndroidBitmap_getInfo failed");
-	}
-
-	void *pixels;
-	result = AndroidBitmap_lockPixels(env, bitmap, &pixels);
-	if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
-		throw std::runtime_error("AndroidBitmap_lockPixels failed");
-	}
-
-	for (int y = 0; y < frame->height; ++y) {
-		uint8_t *srcRow = frame->data[0] + y * frame->linesize[0];
-		uint8_t *dstRow =
-		    static_cast<uint8_t *>(pixels) + y * bitmapInfo.stride;
-		memcpy(dstRow, srcRow, frame->width * 4);
-	}
-	AndroidBitmap_unlockPixels(env, bitmap);
-	env->DeleteLocalRef(bitmapConfigClass);
-	env->DeleteLocalRef(bitmapClass);
-	env->DeleteLocalRef(bitmapConfig);
-	return bitmap;
+JavaVM *gJvm = nullptr;
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
+	gJvm = vm;
+	return JNI_VERSION_1_6;
 }
-JNIEXPORT void JNICALL Java_com_webrtc_Camera_processFrame(JNIEnv *env, jobject,
-                                                           jstring id,
-                                                           jobject image) {
 
-	auto container = getVideoContainerJni(env, id);
-	if (!container) {
-		return;
-	}
+JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeVideo(
+    JNIEnv *env, jobject thiz, jstring pipeId) {
+	auto scaler = std::make_shared<Scaler>();
+	jobject gFabricManager = env->NewGlobalRef(thiz);
+	auto callback = [gFabricManager, scaler](std::shared_ptr<AVFrame> raw) {
+		auto frame =
+		    scaler->scale(raw, AV_PIX_FMT_RGBA, raw->width, raw->height);
+
+		JNIEnv *env;
+		gJvm->AttachCurrentThread(&env, nullptr);
+		jclass bitmapConfigClass =
+		    env->FindClass("android/graphics/Bitmap$Config");
+		jfieldID argb8888FieldID = env->GetStaticFieldID(
+		    bitmapConfigClass, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
+		jobject bitmapConfig =
+		    env->GetStaticObjectField(bitmapConfigClass, argb8888FieldID);
+		jclass bitmapClass = env->FindClass("android/graphics/Bitmap");
+		jmethodID createBitmapMethodID = env->GetStaticMethodID(
+		    bitmapClass, "createBitmap",
+		    "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+		jobject bitmap = env->CallStaticObjectMethod(
+		    bitmapClass, createBitmapMethodID, frame->width, frame->height,
+		    bitmapConfig);
+		AndroidBitmapInfo bitmapInfo;
+		int result = AndroidBitmap_getInfo(env, bitmap, &bitmapInfo);
+		if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
+			throw std::runtime_error("AndroidBitmap_getInfo failed");
+		}
+
+		void *pixels;
+		result = AndroidBitmap_lockPixels(env, bitmap, &pixels);
+		if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
+			throw std::runtime_error("AndroidBitmap_lockPixels failed");
+		}
+
+		for (int y = 0; y < frame->height; ++y) {
+			uint8_t *srcRow = frame->data[0] + y * frame->linesize[0];
+			uint8_t *dstRow =
+			    static_cast<uint8_t *>(pixels) + y * bitmapInfo.stride;
+			memcpy(dstRow, srcRow, frame->width * 4);
+		}
+		AndroidBitmap_unlockPixels(env, bitmap);
+		env->DeleteLocalRef(bitmapConfigClass);
+		env->DeleteLocalRef(bitmapClass);
+		env->DeleteLocalRef(bitmapConfig);
+
+		// call
+		jclass fabricManagerClass = env->GetObjectClass(gFabricManager);
+		jmethodID updateFrameMethod = env->GetMethodID(
+		    fabricManagerClass, "updateFrame", "(Landroid/graphics/Bitmap;)V");
+		env->CallVoidMethod(gFabricManager, updateFrameMethod, bitmap);
+		env->DeleteLocalRef(fabricManagerClass);
+		env->DeleteLocalRef(bitmap);
+	};
+
+	auto cleanup = [gFabricManager]() {
+		JNIEnv *env;
+		gJvm->AttachCurrentThread(&env, nullptr);
+		env->DeleteGlobalRef(gFabricManager);
+	};
+	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
+	return subscribe(pipeIdStr, callback, cleanup);
+}
+
+JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeAudio(
+    JNIEnv *env, jobject thiz, jstring pipeId) {
+	auto resampler = std::make_shared<Resampler>();
+	jobject gFabricManager = env->NewGlobalRef(thiz);
+
+	auto callback = [gFabricManager, resampler](std::shared_ptr<AVFrame> raw) {
+		JNIEnv *env;
+		gJvm->AttachCurrentThread(&env, nullptr);
+		auto frame = resampler->resample(raw, AV_SAMPLE_FMT_S16, 48000, 2);
+		const jbyte *sample = reinterpret_cast<const jbyte *>(frame->data[0]);
+		int length = frame->nb_samples * sizeof(int16_t) * 2;
+		jbyteArray byteArray = env->NewByteArray(length);
+		env->SetByteArrayRegion(byteArray, 0, length, sample);
+
+		jclass fabricManagerClass = env->GetObjectClass(gFabricManager);
+		jfieldID audioTrackField = env->GetFieldID(
+		    fabricManagerClass, "audioTrack", "Landroid/media/AudioTrack;");
+		jobject audioTrackObj =
+		    env->GetObjectField(gFabricManager, audioTrackField);
+		jclass audioTrackCls = env->GetObjectClass(audioTrackObj);
+		jmethodID writeMethod =
+		    env->GetMethodID(audioTrackCls, "write", "([BII)I");
+		env->CallIntMethod(audioTrackObj, writeMethod, byteArray, 0, length);
+	};
+
+	auto cleanup = [gFabricManager]() {
+		JNIEnv *env;
+		gJvm->AttachCurrentThread(&env, nullptr);
+		env->DeleteGlobalRef(gFabricManager);
+	};
+
+	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
+	return subscribe(pipeIdStr, callback, cleanup);
+}
+
+JNIEXPORT void JNICALL Java_com_webrtc_WebrtcFabricManager_unsubscribe(
+    JNIEnv, jobject, jint subscriptionId) {
+	unsubscribe(subscriptionId);
+}
+
+JNIEXPORT void JNICALL Java_com_webrtc_Camera_publish(JNIEnv *env, jobject,
+                                                      jstring pipeId,
+                                                      jobject image) {
 
 	static jlong baseTimestamp = 0;
 	static bool isFirstFrame = true;
@@ -160,38 +199,14 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_processFrame(JNIEnv *env, jobject,
 	env->DeleteLocalRef(imageClass);
 	env->DeleteLocalRef(planeClass);
 
-	container->push(frame);
+	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
+	publish(pipeIdStr, frame);
 }
 
-JNIEXPORT jbyteArray JNICALL Java_com_webrtc_Sound_getFrame(JNIEnv *env,
-                                                              jobject,
-                                                              jstring id) {
-	auto container = getAudioContainerJni(env, id);
-	if (!container) {
-		return nullptr;
-	}
-	auto frame = container->popAudio(AV_SAMPLE_FMT_S16, 48000, 2);
-	if (!frame) {
-		return nullptr;
-	}
-
-	const jbyte *sample = reinterpret_cast<const jbyte *>(frame->data[0]);
-	int length = frame->nb_samples * sizeof(int16_t) * 2;
-	jbyteArray byteArray = env->NewByteArray(length);
-	env->SetByteArrayRegion(byteArray, 0, length, sample);
-
-	return byteArray;
-}
-
-JNIEXPORT void JNICALL Java_com_webrtc_Microphone_processFrame(
-    JNIEnv *env, jobject, jstring id, jbyteArray audioBuffer, jint size) {
+JNIEXPORT void JNICALL Java_com_webrtc_Microphone_publish(
+    JNIEnv *env, jobject, jstring pipeId, jbyteArray audioBuffer, jint size) {
 	static bool isFirstFrame = true;
 	static auto baseTimestamp = std::chrono::system_clock::now();
-
-	auto container = getAudioContainerJni(env, id);
-	if (!container) {
-		return;
-	}
 
 	auto now = std::chrono::system_clock::now();
 	if (isFirstFrame) {
@@ -210,7 +225,8 @@ JNIEXPORT void JNICALL Java_com_webrtc_Microphone_processFrame(
 	memcpy(frame->data[0], audioData, size);
 	env->ReleaseByteArrayElements(audioBuffer, audioData, JNI_ABORT);
 
-	container->push(frame);
+	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
+	publish(pipeIdStr, frame);
 }
 }
 } // namespace facebook::react

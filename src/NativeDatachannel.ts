@@ -32,16 +32,13 @@ export interface Spec extends TurboModule {
   getGatheringState(pc: string): string;
   getPeerConnectionState(pc: string): string;
 
-  createMediaContainer(kind: string): string;
-  removeMediaContainer(id: string): void;
-
   createRTCRtpTransceiver(
     pc: string,
     index: number,
     kind: string,
     direction: string,
-    sendms: string,
-    recvms: string,
+    sendPipeId: string,
+    recvPipeId: string,
     msids: string[],
     trackid: string | null
   ): string;
@@ -57,6 +54,9 @@ export interface Spec extends TurboModule {
   setRemoteDescription(pc: string, sdp: string): void;
 
   addRemoteCandidate(pc: string, candidate: string, mid: string): void;
+
+  forwardPipe(fromPipeId: string, toPipeId: string): number;
+  unsubscribe(subscriptionId: number): void;
 
   onTrack: EventEmitter<TrackEvent>;
   onConnectionStateChange: EventEmitter<ConnectionStateChangeEvent>;

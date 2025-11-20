@@ -34,24 +34,24 @@ RCT_EXPORT_MODULE()
   }
 }
 
-- (void)cameraAddContainer:(nonnull NSString *)container {
+- (void)cameraAddPipe:(nonnull NSString *)pipeId {
   CameraSession *cameraSession = [CameraSession sharedInstance];
-  [cameraSession addContainer:container];
+  [cameraSession addPipe:pipeId];
 }
 
-- (void)cameraRemoveContainer:(nonnull NSString *)container {
+- (void)cameraRemovePipe:(nonnull NSString *)pipeId {
   CameraSession *cameraSession = [CameraSession sharedInstance];
-  [cameraSession removeContainer:container];
+  [cameraSession removePipe:pipeId];
 }
 
-- (void)microphoneAddContainer:(nonnull NSString *)container {
+- (void)microphoneAddPipe:(nonnull NSString *)pipeId {
   AudioSession *audioSession = [AudioSession sharedInstance];
-  [audioSession microphoneAddContainer:container];
+  [audioSession microphoneAddPipe:pipeId];
 }
 
-- (void)microphoneRemoveContainer:(nonnull NSString *)container {
+- (void)microphoneRemovePipe:(nonnull NSString *)pipeId {
   AudioSession *audioSession = [AudioSession sharedInstance];
-  [audioSession microphoneRemoveContainer:container];
+  [audioSession microphoneRemovePipe:pipeId];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:

@@ -1,13 +1,13 @@
 #import "CameraSession.h"
 #import <AVFoundation/AVFoundation.h>
-#import "MediaContainer.h"
+#import "framepipe.h"
 
 static CameraSession *_sharedInstance = nil;
 
 @interface CameraSession () <AVCaptureVideoDataOutputSampleBufferDelegate>
 @property (nonatomic, strong) AVCaptureSession *session;
 @property (nonatomic, strong) dispatch_queue_t sampleBufferQueue;
-@property (nonatomic, strong) NSMutableArray<NSString *> *containers;
+@property (nonatomic, strong) NSMutableArray<NSString *> *pipes;
 @property (nonatomic, assign) int64_t ptsBase;
 
 @end
@@ -28,7 +28,7 @@ static CameraSession *_sharedInstance = nil;
     self.session = [[AVCaptureSession alloc] init];
     self.session.sessionPreset = AVCaptureSessionPreset1280x720;
     self.sampleBufferQueue = dispatch_queue_create("com.example.camera.queue", DISPATCH_QUEUE_SERIAL);
-    self.containers = [NSMutableArray array];
+    self.pipes = [NSMutableArray array];
     self.ptsBase = -1;
     
     NSError *error = nil;
@@ -42,23 +42,23 @@ static CameraSession *_sharedInstance = nil;
   return self;
 }
 
-- (void)addContainer:(NSString *)container {
-  if ([self.containers containsObject:container]) {
+- (void)addPipe:(NSString *)pipeId {
+  if ([self.pipes containsObject:pipeId]) {
     return;
   }
-  [self.containers addObject:container];
+  [self.pipes addObject:pipeId];
   
   if (!self.session.isRunning) {
     [self.session startRunning];
   }
 }
 
-- (void)removeContainer:(NSString *)container {
-  if (![self.containers containsObject:container]) {
+- (void)removePipe:(NSString *)pipeId {
+  if (![self.pipes containsObject:pipeId]) {
     return;
   }
-  [self.containers removeObject:container];
-  if (self.containers.count == 0) {
+  [self.pipes removeObject:pipeId];
+  if (self.pipes.count == 0) {
     if (self.session.isRunning) {
       [self.session stopRunning];
     }
@@ -128,7 +128,8 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
   size_t width = CVPixelBufferGetWidth(pixelBuffer);
   size_t height = CVPixelBufferGetHeight(pixelBuffer);
   
-  auto frame = createVideoFrame(AV_PIX_FMT_NV12, pts_90k - self.ptsBase, width, height);
+  int64_t fpts = pts_90k - self.ptsBase;
+  auto frame = createVideoFrame(AV_PIX_FMT_NV12, fpts, width, height);
   uint8_t *srcY = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
   uint8_t *srcUV = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
   int srcYStride = (int)CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
@@ -145,12 +146,9 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
   
   CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
   
-  for (NSString *containerId in self.containers) {
-    std::string cppStr = [containerId UTF8String];
-    auto container = getMediaContainer(cppStr);
-    if (container) {
-      container->push(frame);
-    }
+  for (NSString *pipeId in self.pipes) {
+    std::string cppPipeStr = [pipeId UTF8String];
+    publish(cppPipeStr, frame);
   }
 }
 

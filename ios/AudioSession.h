@@ -1,6 +1,5 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
-#import "MediaContainer.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -8,10 +7,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (instancetype)sharedInstance;
 
-- (void)microphoneAddContainer:(NSString *)container;
-- (void)microphoneRemoveContainer:(NSString *)container;
-- (void)soundAddContainer:(NSString *)container;
-- (void)soundRemoveContainer:(NSString *)container;
+- (void)microphoneAddPipe:(NSString *)pipeId;
+- (void)microphoneRemovePipe:(NSString *)pipeId;
+- (void)soundAddPipe:(NSString *)pipeId;
+- (void)soundRemovePipe:(NSString *)pipeId;
 
 @end
 

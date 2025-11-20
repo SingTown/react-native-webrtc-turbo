@@ -1,6 +1,6 @@
 #include "NativeDatachannel.h"
-#include "MediaContainer.h"
 #include "RTCRtpReceiver.h"
+#include "framepipe.h"
 #include "guid.h"
 #include "log.h"
 #include "negotiate.h"
@@ -52,8 +52,7 @@ NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
     : NativeDatachannelCxxSpec(std::move(jsInvoker)) {}
 
 std::string NativeDatachannel::createPeerConnection(
-    [[maybe_unused]] jsi::Runtime &rt,
-    const std::vector<std::string> &servers) {
+    jsi::Runtime &, const std::vector<std::string> &servers) {
 	rtc::Configuration c;
 	for (const auto &server : servers) {
 		c.iceServers.emplace_back(server);
@@ -97,60 +96,39 @@ std::string NativeDatachannel::createPeerConnection(
 }
 
 rtc::PeerConnection::GatheringState
-NativeDatachannel::getGatheringState([[maybe_unused]] jsi::Runtime &rt,
-                                     const std::string &pc) {
+NativeDatachannel::getGatheringState(jsi::Runtime &, const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->gatheringState();
 }
 
 rtc::PeerConnection::State
-NativeDatachannel::getPeerConnectionState([[maybe_unused]] jsi::Runtime &rt,
+NativeDatachannel::getPeerConnectionState(jsi::Runtime &,
                                           const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->state();
 }
 
-void NativeDatachannel::closePeerConnection([[maybe_unused]] jsi::Runtime &rt,
+void NativeDatachannel::closePeerConnection(jsi::Runtime &,
                                             const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	peerConnection->close();
 	peerConnectionMap.erase(pc);
 }
 
-std::string
-NativeDatachannel::createMediaContainer([[maybe_unused]] jsi::Runtime &rt,
-                                        const std::string &kind) {
-	if (kind == "audio") {
-		auto container = std::make_shared<AudioContainer>();
-		return emplaceAudioContainer(container);
-	} else if (kind == "video") {
-		auto container = std::make_shared<VideoContainer>();
-		return emplaceVideoContainer(container);
-	}
-	throw std::invalid_argument("kind must be 'audio' or 'video'");
-}
-
-void NativeDatachannel::removeMediaContainer([[maybe_unused]] jsi::Runtime &rt,
-                                             const std::string &id) {
-	eraseMediaContainer(id);
-}
-
 std::string NativeDatachannel::createRTCRtpTransceiver(
-    [[maybe_unused]] jsi::Runtime &rt, const std::string &pc, int index,
-    const std::string &kind, rtc::Description::Direction direction,
-    const std::string &sendContainerId, const std::string &recvContainerId,
-    const std::vector<std::string> &msids,
+    jsi::Runtime &, const std::string &pc, int index, const std::string &kind,
+    rtc::Description::Direction direction, const std::string &sendPipeId,
+    const std::string &recvPipeId, const std::vector<std::string> &msids,
     const std::optional<std::string> &trackid) {
 
 	auto peerConnection = getPeerConnection(pc);
-	auto track =
-	    addTransceiver(peerConnection, index, kind, direction, sendContainerId,
-	                   recvContainerId, msids, trackid);
+	auto track = addTransceiver(peerConnection, index, kind, direction,
+	                            sendPipeId, recvPipeId, msids, trackid);
 
 	return emplaceTrack(track);
 }
 
-void NativeDatachannel::stopRTCTransceiver([[maybe_unused]] jsi::Runtime &rt,
+void NativeDatachannel::stopRTCTransceiver(jsi::Runtime &,
                                            const std::string &tr) {
 	auto track = getTrack(tr);
 	if (track) {
@@ -159,23 +137,22 @@ void NativeDatachannel::stopRTCTransceiver([[maybe_unused]] jsi::Runtime &rt,
 	}
 }
 
-std::string NativeDatachannel::createOffer([[maybe_unused]] jsi::Runtime &rt,
+std::string NativeDatachannel::createOffer(jsi::Runtime &,
                                            const std::string &pc) {
 
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createOffer();
 }
 
-std::string NativeDatachannel::createAnswer([[maybe_unused]] jsi::Runtime &rt,
+std::string NativeDatachannel::createAnswer(jsi::Runtime &,
                                             const std::string &pc) {
 
 	auto peerConnection = getPeerConnection(pc);
 	return peerConnection->createAnswer();
 }
 
-std::string
-NativeDatachannel::getLocalDescription([[maybe_unused]] jsi::Runtime &rt,
-                                       const std::string &pc) {
+std::string NativeDatachannel::getLocalDescription(jsi::Runtime &,
+                                                   const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	auto sdp = peerConnection->localDescription();
 	if (!sdp.has_value()) {
@@ -184,7 +161,7 @@ NativeDatachannel::getLocalDescription([[maybe_unused]] jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannel::setLocalDescription([[maybe_unused]] jsi::Runtime &rt,
+void NativeDatachannel::setLocalDescription(jsi::Runtime &,
                                             const std::string &pc,
                                             const std::string &sdp) {
 
@@ -193,9 +170,8 @@ void NativeDatachannel::setLocalDescription([[maybe_unused]] jsi::Runtime &rt,
 	peerConnection->setLocalDescription(description.type());
 }
 
-std::string
-NativeDatachannel::getRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
-                                        const std::string &pc) {
+std::string NativeDatachannel::getRemoteDescription(jsi::Runtime &,
+                                                    const std::string &pc) {
 	auto peerConnection = getPeerConnection(pc);
 	auto sdp = peerConnection->remoteDescription();
 	if (!sdp.has_value()) {
@@ -204,7 +180,7 @@ NativeDatachannel::getRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
 	return sdp->generateSdp();
 }
 
-void NativeDatachannel::setRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
+void NativeDatachannel::setRemoteDescription(jsi::Runtime &,
                                              const std::string &pc,
                                              const std::string &sdp) {
 
@@ -237,13 +213,25 @@ void NativeDatachannel::setRemoteDescription([[maybe_unused]] jsi::Runtime &rt,
 	}
 }
 
-void NativeDatachannel::addRemoteCandidate([[maybe_unused]] jsi::Runtime &rt,
+void NativeDatachannel::addRemoteCandidate(jsi::Runtime &,
                                            const std::string &pc,
                                            const std::string &candidate,
                                            const std::string &mid) {
 	auto peerConnection = getPeerConnection(pc);
 	rtc::Candidate cand(candidate, mid);
 	peerConnection->addRemoteCandidate(cand);
+}
+
+int NativeDatachannel::forwardPipe(jsi::Runtime &,
+                                   const std::string &fromPipeId,
+                                   const std::string &toPipeId) {
+	return subscribe(fromPipeId, [toPipeId](std::shared_ptr<AVFrame> frame) {
+		publish(toPipeId, frame);
+	});
+}
+
+void NativeDatachannel::unsubscribe(jsi::Runtime &, int subscriptionId) {
+	::unsubscribe(subscriptionId);
 }
 
 } // namespace facebook::react

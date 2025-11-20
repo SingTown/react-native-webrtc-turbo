@@ -13,8 +13,8 @@ export function WebrtcView(props: WebrtcViewProps) {
   return (
     <WebrtcFabric
       style={props.style}
-      videoContainer={videoTrack ? videoTrack._containerId : ''}
-      audioContainer={audioTrack ? audioTrack._containerId : ''}
+      videoPipeId={videoTrack ? videoTrack._dstPipeId : ''}
+      audioPipeId={audioTrack ? audioTrack._dstPipeId : ''}
     />
   );
 }

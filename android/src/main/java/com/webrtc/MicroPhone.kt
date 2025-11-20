@@ -6,11 +6,11 @@ import android.media.MediaRecorder
 
 object Microphone {
   private var audioRecord: AudioRecord? = null
-  private val containers = mutableListOf<String>()
+  private val pipes = mutableListOf<String>()
   private var recordThread: Thread? = null
   private var isRecording = false
 
-  external fun processFrame(id: String, data: ByteArray, size: Int)
+  external fun publish(id: String, data: ByteArray, size: Int)
 
   private fun start() {
     if (isRecording) return
@@ -35,8 +35,8 @@ object Microphone {
         if (read < 0) {
           continue
         }
-        for (container in containers) {
-          processFrame(container, buffer, read)
+        for (pipeId in pipes) {
+          publish(pipeId, buffer, read)
         }
       }
     }
@@ -52,22 +52,22 @@ object Microphone {
     recordThread = null
   }
 
-  fun addContainer(id: String) {
-    if (containers.contains(id)) {
+  fun addPipe(id: String) {
+    if (pipes.contains(id)) {
       return
     }
-    containers.add(id)
-    if (containers.size == 1) {
+    pipes.add(id)
+    if (pipes.size == 1) {
       start()
     }
   }
 
-  fun removeContainer(id: String) {
-    if (!containers.contains(id)) {
+  fun removePipe(id: String) {
+    if (!pipes.contains(id)) {
       return
     }
-    containers.remove(id)
-    if (containers.isEmpty()) {
+    pipes.remove(id)
+    if (pipes.isEmpty()) {
       stop()
     }
   }

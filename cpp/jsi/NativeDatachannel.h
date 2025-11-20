@@ -21,13 +21,10 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	rtc::PeerConnection::State getPeerConnectionState(jsi::Runtime &rt,
 	                                                  const std::string &pc);
 
-	std::string createMediaContainer(jsi::Runtime &rt, const std::string &kind);
-	void removeMediaContainer(jsi::Runtime &rt, const std::string &id);
-
 	std::string createRTCRtpTransceiver(
 	    jsi::Runtime &rt, const std::string &pc, int index,
 	    const std::string &kind, rtc::Description::Direction direction,
-	    const std::string &sendContainerId, const std::string &recvContainerId,
+	    const std::string &sendPipeId, const std::string &recvPipeId,
 	    const std::vector<std::string> &msids,
 	    const std::optional<std::string> &trackid);
 	void stopRTCTransceiver(jsi::Runtime &rt, const std::string &tr);
@@ -46,6 +43,12 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 	void addRemoteCandidate(jsi::Runtime &rt, const std::string &pc,
 	                        const std::string &candidate,
 	                        const std::string &mid);
+
+	int forwardPipe(jsi::Runtime &rt, const std::string &fromPipeId,
+	                const std::string &toPipeId);
+	void unsubscribe(jsi::Runtime &rt, int subscriptionId);
+
+  private:
 };
 
 } // namespace facebook::react
