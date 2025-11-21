@@ -49,8 +49,9 @@ target_link_libraries(
     reactnative
     react_codegen_WebrtcSpec
     ${LIBDATACHANNEL_PATH}/lib/libdatachannel.so
+    ${FFMPEG_PATH}/lib/libavformat.so
     ${FFMPEG_PATH}/lib/libavcodec.so
-    ${FFMPEG_PATH}/lib/libavutil.so
     ${FFMPEG_PATH}/lib/libswscale.so
     ${FFMPEG_PATH}/lib/libswresample.so
+    ${FFMPEG_PATH}/lib/libavutil.so
 )

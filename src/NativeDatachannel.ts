@@ -56,6 +56,12 @@ export interface Spec extends TurboModule {
   addRemoteCandidate(pc: string, candidate: string, mid: string): void;
 
   forwardPipe(fromPipeId: string, toPipeId: string): number;
+  startRecording(
+    path: string,
+    audioPipeId: string,
+    videoPipeId: string
+  ): number;
+  takePhoto(file: string, pipeId: string): Promise<string>;
   unsubscribe(subscriptionId: number): void;
 
   onTrack: EventEmitter<TrackEvent>;

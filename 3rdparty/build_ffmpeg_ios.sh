@@ -43,27 +43,34 @@ for i in "${!SDKS[@]}"; do
             --disable-avfilter \
             --enable-swresample \
             --enable-avcodec \
+            --enable-avformat \
             --enable-swscale \
             --enable-avutil \
             --disable-audiotoolbox \
             --enable-videotoolbox \
             --enable-libopus \
             --disable-mediacodec \
+            --enable-protocol=file \
             --enable-decoder=h264 \
             --enable-decoder=hevc \
             --enable-parser=h264 \
             --enable-parser=hevc \
             --enable-encoder=h264_videotoolbox \
             --enable-encoder=hevc_videotoolbox \
+            --enable-encoder=png \
             --enable-decoder=libopus \
             --enable-encoder=libopus \
-            --enable-parser=opus
+            --enable-encoder=aac \
+            --enable-decoder=aac \
+            --enable-parser=opus \
+            --enable-muxer=mp4
 
         make -j install
     )
     libtool -static -o $FFMPEG_DIR/libffmpeg.a \
         $OPUS_DIR/install/lib/libopus.a \
         $FFMPEG_DIR/install/lib/libavcodec.a \
+        $FFMPEG_DIR/install/lib/libavformat.a \
         $FFMPEG_DIR/install/lib/libswscale.a \
         $FFMPEG_DIR/install/lib/libswresample.a \
         $FFMPEG_DIR/install/lib/libavutil.a

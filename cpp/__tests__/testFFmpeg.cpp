@@ -1,5 +1,6 @@
 #include "ffmpeg.h"
 #include <cmath>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <random>
 
@@ -271,4 +272,102 @@ TEST(EncoderTest, testEncodeH265) {
 	}
 
 	ASSERT_GT(packets.size(), 0);
+}
+
+TEST(EncoderTest, testEncodeAAC) {
+	Encoder encoder(AV_CODEC_ID_AAC);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 1024);
+	fillNoise(inputFrame);
+
+	std::vector<std::shared_ptr<AVPacket>> packets;
+	for (auto &pkt : encoder.encode(inputFrame)) {
+		packets.push_back(pkt);
+	}
+	for (auto &pkt : encoder.encode(nullptr)) {
+		packets.push_back(pkt);
+	}
+
+	ASSERT_GT(packets.size(), 0);
+}
+
+TEST(EncoderTest, testEncodeAACBigFrame) {
+	Encoder encoder(AV_CODEC_ID_AAC);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 1024000);
+	fillNoise(inputFrame);
+
+	std::vector<std::shared_ptr<AVPacket>> packets;
+	for (auto &pkt : encoder.encode(inputFrame)) {
+		packets.push_back(pkt);
+	}
+	for (auto &pkt : encoder.encode(nullptr)) {
+		packets.push_back(pkt);
+	}
+
+	ASSERT_GT(packets.size(), 0);
+}
+
+TEST(EncoderTest, testEncodePng) {
+	Encoder encoder(AV_CODEC_ID_PNG);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	std::string file = testing::TempDir() + "out.png";
+	// std::string file = "out.png";
+	FILE *f = fopen(file.c_str(), "wb");
+	for (auto &pkt : encoder.encode(inputFrame)) {
+		fwrite(pkt->data, 1, pkt->size, f);
+	}
+	for (auto &pkt : encoder.encode(nullptr)) {
+		fwrite(pkt->data, 1, pkt->size, f);
+	}
+	fclose(f);
+
+	ASSERT_TRUE(std::filesystem::exists(file));
+}
+
+TEST(MuxerTest, testMuxerAAC) {
+	std::string file = testing::TempDir() + "/test_file.mp4";
+	Muxer muxer(file, AV_CODEC_ID_AAC, AV_CODEC_ID_NONE);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 2048);
+	fillNoise(inputFrame);
+
+	muxer.mux_audio(inputFrame);
+	muxer.stop();
+	EXPECT_TRUE(std::filesystem::exists(file));
+}
+
+TEST(MuxerTest, testMuxerH264) {
+	std::string file = testing::TempDir() + "/test_file.mp4";
+	Muxer muxer(file, AV_CODEC_ID_NONE, AV_CODEC_ID_H264);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+
+	muxer.mux_video(inputFrame);
+	muxer.stop();
+	EXPECT_TRUE(std::filesystem::exists(file));
+}
+
+TEST(MuxerTest, testMuxerVideo) {
+	std::string file = testing::TempDir() + "/test_file.mp4";
+	Muxer muxer(file, AV_CODEC_ID_AAC, AV_CODEC_ID_H264);
+	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 2048);
+	auto in2 = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	fillNoise(in1);
+
+	muxer.mux_audio(in1);
+	muxer.mux_video(in2);
+	muxer.stop();
+	EXPECT_TRUE(std::filesystem::exists(file));
+}
+
+TEST(MuxerTest, testSaveMp4) {
+	std::string file = "output.mp4";
+	Muxer muxer(file, AV_CODEC_ID_AAC, AV_CODEC_ID_H264);
+	for (int i = 0; i < 1000; ++i) {
+		auto in1 =
+		    createAudioFrame(AV_SAMPLE_FMT_FLT, i * 2048, 48000, 1, 2048);
+		fillNoise(in1);
+		auto in2 = createVideoFrame(AV_PIX_FMT_NV12, i * 3000, 640, 480);
+		muxer.mux_audio(in1);
+		muxer.mux_video(in2);
+	}
+	muxer.stop();
+	EXPECT_TRUE(std::filesystem::exists(file));
 }

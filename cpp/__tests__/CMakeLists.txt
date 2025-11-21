@@ -48,13 +48,15 @@ target_link_libraries(
     ${LIBDATACHANNEL_PATH}/lib/libmbedtls.a
     ${LIBDATACHANNEL_PATH}/lib/libmbedx509.a
     ${LIBDATACHANNEL_PATH}/lib/libmbedcrypto.a
+    ${FFMPEG_PATH}/lib/libavformat.a
     ${FFMPEG_PATH}/lib/libavcodec.a
-    ${FFMPEG_PATH}/lib/libavutil.a
     ${FFMPEG_PATH}/lib/libswscale.a
     ${FFMPEG_PATH}/lib/libswresample.a
+    ${FFMPEG_PATH}/lib/libavutil.a
     opus
     x264
     x265
+    z
     gtest
     gtest_main
 )

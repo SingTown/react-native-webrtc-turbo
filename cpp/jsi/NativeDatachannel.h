@@ -46,6 +46,13 @@ class NativeDatachannel : public NativeDatachannelCxxSpec<NativeDatachannel> {
 
 	int forwardPipe(jsi::Runtime &rt, const std::string &fromPipeId,
 	                const std::string &toPipeId);
+
+	int startRecording(jsi::Runtime &rt, const std::string &file,
+	                   const std::string &audioPipeId,
+	                   const std::string &videoPipeId);
+	facebook::react::AsyncPromise<std::string>
+	takePhoto(jsi::Runtime &rt, const std::string &file,
+	          const std::string &pipeId);
 	void unsubscribe(jsi::Runtime &rt, int subscriptionId);
 
   private:

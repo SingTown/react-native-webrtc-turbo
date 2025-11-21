@@ -44,7 +44,8 @@ void SenderOnOpen(std::shared_ptr<rtc::Track> track, const std::string &pipeId,
 
 	auto encoder = std::make_shared<Encoder>(avCodecId);
 	int subscriptionId =
-	    subscribe(pipeId, [encoder, track](std::shared_ptr<AVFrame> frame) {
+	    subscribe({pipeId}, [encoder, track](std::string, int,
+	                                         std::shared_ptr<AVFrame> frame) {
 		    if (!frame) {
 			    return;
 		    }

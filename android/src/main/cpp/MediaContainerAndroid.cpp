@@ -19,7 +19,8 @@ JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeVideo(
     JNIEnv *env, jobject thiz, jstring pipeId) {
 	auto scaler = std::make_shared<Scaler>();
 	jobject gFabricManager = env->NewGlobalRef(thiz);
-	auto callback = [gFabricManager, scaler](std::shared_ptr<AVFrame> raw) {
+	auto callback = [gFabricManager, scaler](std::string, int,
+	                                         std::shared_ptr<AVFrame> raw) {
 		auto frame =
 		    scaler->scale(raw, AV_PIX_FMT_RGBA, raw->width, raw->height);
 
@@ -70,13 +71,13 @@ JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeVideo(
 		env->DeleteLocalRef(bitmap);
 	};
 
-	auto cleanup = [gFabricManager]() {
+	auto cleanup = [gFabricManager](int) {
 		JNIEnv *env;
 		gJvm->AttachCurrentThread(&env, nullptr);
 		env->DeleteGlobalRef(gFabricManager);
 	};
 	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
-	return subscribe(pipeIdStr, callback, cleanup);
+	return subscribe({pipeIdStr}, callback, cleanup);
 }
 
 JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeAudio(
@@ -84,7 +85,8 @@ JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeAudio(
 	auto resampler = std::make_shared<Resampler>();
 	jobject gFabricManager = env->NewGlobalRef(thiz);
 
-	auto callback = [gFabricManager, resampler](std::shared_ptr<AVFrame> raw) {
+	auto callback = [gFabricManager, resampler](std::string, int,
+	                                            std::shared_ptr<AVFrame> raw) {
 		JNIEnv *env;
 		gJvm->AttachCurrentThread(&env, nullptr);
 		auto frame = resampler->resample(raw, AV_SAMPLE_FMT_S16, 48000, 2);
@@ -104,14 +106,14 @@ JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeAudio(
 		env->CallIntMethod(audioTrackObj, writeMethod, byteArray, 0, length);
 	};
 
-	auto cleanup = [gFabricManager]() {
+	auto cleanup = [gFabricManager](int) {
 		JNIEnv *env;
 		gJvm->AttachCurrentThread(&env, nullptr);
 		env->DeleteGlobalRef(gFabricManager);
 	};
 
 	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
-	return subscribe(pipeIdStr, callback, cleanup);
+	return subscribe({pipeIdStr}, callback, cleanup);
 }
 
 JNIEXPORT void JNICALL Java_com_webrtc_WebrtcFabricManager_unsubscribe(

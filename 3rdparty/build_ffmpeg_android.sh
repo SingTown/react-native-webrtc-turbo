@@ -46,17 +46,18 @@ for i in "${!ARCHS[@]}"; do
             --enable-shared --disable-static \
             --disable-asm \
             --disable-iconv \
-            --disable-avformat \
             --disable-avdevice \
             --disable-avfilter \
             --enable-swresample \
             --enable-avcodec \
+            --enable-avformat \
             --enable-swscale \
             --enable-avutil \
             --disable-audiotoolbox \
             --disable-videotoolbox \
             --enable-libopus \
             --enable-mediacodec \
+            --enable-protocol=file \
             --enable-jni \
             --enable-decoder=h264 \
             --enable-decoder=hevc \
@@ -64,9 +65,13 @@ for i in "${!ARCHS[@]}"; do
             --enable-parser=hevc \
             --enable-encoder=h264_mediacodec \
             --enable-encoder=hevc_mediacodec \
+            --enable-encoder=png \
             --enable-decoder=libopus \
             --enable-encoder=libopus \
-            --enable-parser=opus
+            --enable-encoder=aac \
+            --enable-decoder=aac \
+            --enable-parser=opus \
+            --enable-muxer=mp4
 
         make -j install
     )

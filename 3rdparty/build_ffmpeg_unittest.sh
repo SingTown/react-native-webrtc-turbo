@@ -15,11 +15,11 @@ OUTPUT_DIR="${TOP_DIR}/output/unittest/ffmpeg"
         --enable-gpl \
         --disable-asm \
         --disable-iconv \
-        --disable-avformat \
         --disable-avdevice \
         --disable-avfilter \
         --enable-swresample \
         --enable-avcodec \
+        --enable-avformat \
         --enable-swscale \
         --enable-avutil \
         --disable-audiotoolbox \
@@ -29,6 +29,7 @@ OUTPUT_DIR="${TOP_DIR}/output/unittest/ffmpeg"
         --enable-libx264 \
         --enable-libx265 \
         --disable-jni \
+        --enable-protocol=file \
         --enable-decoder=h264 \
         --enable-decoder=hevc \
         --enable-parser=h264 \
@@ -36,10 +37,12 @@ OUTPUT_DIR="${TOP_DIR}/output/unittest/ffmpeg"
         --enable-encoder=libopus \
         --enable-decoder=libopus \
         --enable-encoder=libx264 \
-        --enable-decoder=libx264 \
         --enable-encoder=libx265 \
-        --enable-decoder=libx265 \
-        --enable-parser=opus
+        --enable-encoder=png \
+        --enable-encoder=aac \
+        --enable-decoder=aac \
+        --enable-parser=opus \
+        --enable-muxer=mp4
 
     make -j install
 )

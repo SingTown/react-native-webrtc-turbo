@@ -1,5 +1,5 @@
-#import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#import <Foundation/Foundation.h>
 
 @protocol CameraDelegate <NSObject>
 

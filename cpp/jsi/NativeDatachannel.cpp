@@ -4,6 +4,7 @@
 #include "guid.h"
 #include "log.h"
 #include "negotiate.h"
+#include <filesystem>
 #include <iostream>
 #include <mutex>
 #include <regex>
@@ -225,9 +226,73 @@ void NativeDatachannel::addRemoteCandidate(jsi::Runtime &,
 int NativeDatachannel::forwardPipe(jsi::Runtime &,
                                    const std::string &fromPipeId,
                                    const std::string &toPipeId) {
-	return subscribe(fromPipeId, [toPipeId](std::shared_ptr<AVFrame> frame) {
+	return subscribe({fromPipeId}, [toPipeId](std::string, int,
+	                                          std::shared_ptr<AVFrame> frame) {
 		publish(toPipeId, frame);
 	});
+}
+
+int NativeDatachannel::startRecording(jsi::Runtime &, const std::string &file,
+                                      const std::string &audioPipeId,
+                                      const std::string &videoPipeId) {
+	if (std::filesystem::path(file).extension() != ".mp4") {
+		throw std::invalid_argument("Only .png format is supported");
+	}
+	AVCodecID audioCodecId = AV_CODEC_ID_NONE;
+	AVCodecID videoCodecId = AV_CODEC_ID_NONE;
+	std::vector<std::string> pipeIds;
+	if (!audioPipeId.empty()) {
+		pipeIds.push_back(audioPipeId);
+		audioCodecId = AV_CODEC_ID_AAC;
+	}
+	if (!videoPipeId.empty()) {
+		pipeIds.push_back(videoPipeId);
+		videoCodecId = AV_CODEC_ID_H264;
+	}
+
+	auto muxer = std::make_shared<Muxer>(file, audioCodecId, videoCodecId);
+	auto callback = [muxer, audioPipeId,
+	                 videoPipeId](std::string pipeId, int,
+	                              std::shared_ptr<AVFrame> frame) {
+		if (pipeId == audioPipeId) {
+			muxer->mux_audio(frame);
+		}
+		if (pipeId == videoPipeId) {
+			muxer->mux_video(frame);
+		}
+	};
+
+	auto cleanup = [muxer](int) { muxer->stop(); };
+
+	return subscribe(pipeIds, callback, cleanup);
+}
+
+facebook::react::AsyncPromise<std::string>
+NativeDatachannel::takePhoto(jsi::Runtime &rt, const std::string &file,
+                             const std::string &pipeId) {
+	if (std::filesystem::path(file).extension() != ".png") {
+		throw std::invalid_argument("Only .png format is supported");
+	}
+
+	auto promise = std::make_shared<facebook::react::AsyncPromise<std::string>>(
+	    rt, jsInvoker_);
+
+	auto encoder = std::make_shared<Encoder>(AV_CODEC_ID_PNG);
+	auto callback = [encoder, file, promise,
+	                 this](std::string, int subscriptionId,
+	                       std::shared_ptr<AVFrame> frame) {
+		FILE *f = fopen(file.c_str(), "wb");
+		for (auto &packet : encoder->encode(frame)) {
+			fwrite(packet->data, 1, packet->size, f);
+		}
+		fclose(f);
+		::unsubscribe(subscriptionId);
+		this->jsInvoker_->invokeAsync(
+		    [promise, file](jsi::Runtime &) { promise->resolve(file); });
+	};
+
+	subscribe({pipeId}, callback, nullptr);
+	return *promise;
 }
 
 void NativeDatachannel::unsubscribe(jsi::Runtime &, int subscriptionId) {

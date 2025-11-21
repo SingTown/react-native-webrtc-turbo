@@ -10,6 +10,7 @@
 extern "C" {
 #define AVMediaType FFmpeg_AVMediaType
 #include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 #include <libavutil/audio_fifo.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/log.h>
@@ -39,7 +40,7 @@ inline std::shared_ptr<AVFrame> createVideoFrame(AVPixelFormat format, int pts,
 	frame->height = height;
 
 	if (av_frame_get_buffer(frame.get(), 32) < 0) {
-		throw std::runtime_error("Could not allocate AVFrame");
+		throw std::runtime_error("Could not av_frame_get_buffer");
 	}
 	return frame;
 }
@@ -70,7 +71,7 @@ inline std::shared_ptr<AVFrame> createAudioFrame(AVSampleFormat format, int pts,
 class Scaler {
   private:
 	SwsContext *sws_ctx = nullptr;
-	std::mutex mutex;
+	std::recursive_mutex mutex;
 
   public:
 	std::shared_ptr<AVFrame> scale(std::shared_ptr<AVFrame> frame,
@@ -108,7 +109,7 @@ class Scaler {
 class Resampler {
   private:
 	SwrContext *swr_ctx = nullptr;
-	std::mutex mutex;
+	std::recursive_mutex mutex;
 	AVSampleFormat inFormat = AV_SAMPLE_FMT_NONE;
 	int inChannels = 0;
 	int inSampleRate = 0;
@@ -200,7 +201,7 @@ class Resampler {
 class AudioFifo {
   private:
 	AVAudioFifo *fifo = nullptr;
-	std::mutex mutex;
+	std::recursive_mutex mutex;
 	AVSampleFormat format = AV_SAMPLE_FMT_NONE;
 	int channels = 0;
 	int sample_rate = 0;
@@ -282,7 +283,7 @@ class Encoder {
 	Scaler scaler;
 	Resampler resampler;
 	AudioFifo fifo;
-	std::mutex mutex;
+	std::recursive_mutex mutex;
 
 	void init(std::shared_ptr<AVFrame> frame) {
 		ctx = avcodec_alloc_context3(encoder);
@@ -337,6 +338,13 @@ class Encoder {
 			ctx->bit_rate = 128000; // 128kbps ~ 16KB/s
 			ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;
 			av_channel_layout_default(&ctx->ch_layout, 2);
+		} else if (encoder->id == AV_CODEC_ID_PNG) {
+			printf("init png ctx\n");
+			ctx->codec_id = AV_CODEC_ID_PNG;
+			ctx->time_base = (AVRational){1, 90000};
+			ctx->width = frame->width;
+			ctx->height = frame->height;
+			ctx->pix_fmt = AV_PIX_FMT_RGBA;
 		} else {
 			throw std::runtime_error("Unsupported encoder" +
 			                         std::to_string(encoder->id));
@@ -408,6 +416,11 @@ class Encoder {
 				frames.push_back(scaler.scale(frame, AV_PIX_FMT_YUV420P,
 				                              frame->width, frame->height));
 			}
+		} else if (encoder->id == AV_CODEC_ID_PNG) {
+			if (frame) {
+				frames.push_back(scaler.scale(frame, AV_PIX_FMT_RGBA,
+				                              frame->width, frame->height));
+			}
 		} else {
 			throw std::runtime_error("Unsupported encoder" +
 			                         std::to_string(encoder->id));
@@ -442,7 +455,7 @@ class Encoder {
 class Decoder {
   private:
 	AVCodecContext *ctx = nullptr;
-	std::mutex mutex;
+	std::recursive_mutex mutex;
 
   public:
 	Decoder(AVCodecID codecId) {
@@ -501,4 +514,147 @@ class Decoder {
 			ctx = nullptr;
 		}
 	}
+};
+
+class Muxer {
+  private:
+	std::recursive_mutex mutex;
+	AVFormatContext *fmt_ctx = nullptr;
+	AVIOContext *avio_ctx = nullptr;
+	Encoder audioEncoder;
+	Encoder videoEncoder;
+	Resampler audioResampler;
+	Scaler videoScaler;
+
+	AVStream *audio_stream = nullptr;
+	AVStream *video_stream = nullptr;
+	std::chrono::system_clock::time_point timestamp;
+	bool has_wrote_header = false;
+	bool audio_opened = false;
+	bool video_opened = false;
+
+	void try_write_header() {
+		if (audioEncoder.encoder && !audio_opened) {
+			return;
+		}
+		if (videoEncoder.encoder && !video_opened) {
+			return;
+		}
+
+		if (avformat_write_header(fmt_ctx, NULL) < 0) {
+			return;
+		}
+
+		has_wrote_header = true;
+	}
+
+	void destroy() {
+		if (avio_ctx) {
+			av_free(avio_ctx->buffer);
+			av_free(avio_ctx);
+		}
+		if (fmt_ctx) {
+			avformat_free_context(fmt_ctx);
+			fmt_ctx = nullptr;
+		}
+	}
+
+  public:
+	Muxer(const std::string &path, AVCodecID audioCodecId = AV_CODEC_ID_NONE,
+	      AVCodecID videoCodecId = AV_CODEC_ID_NONE)
+
+	    : audioEncoder(audioCodecId), videoEncoder(videoCodecId) {
+
+		std::lock_guard lock(mutex);
+
+		timestamp = std::chrono::system_clock::now();
+
+		if (avformat_alloc_output_context2(&fmt_ctx, NULL, NULL, path.c_str()) <
+		    0) {
+			throw std::runtime_error("Could not allocate output context");
+		}
+
+		int ret = avio_open(&fmt_ctx->pb, path.c_str(), AVIO_FLAG_WRITE);
+		if (ret < 0) {
+			char errbuf[256];
+			av_strerror(ret, errbuf, sizeof(errbuf));
+			printf("avio_open failed: %s\n", errbuf);
+			throw std::runtime_error("Could not open output file");
+		}
+	}
+
+	void mux_audio(std::shared_ptr<AVFrame> frame) {
+		std::lock_guard lock(mutex);
+
+		auto packets = audioEncoder.encode(frame);
+
+		if (frame && !audio_opened) {
+			audio_stream = avformat_new_stream(fmt_ctx, audioEncoder.encoder);
+			if (!audio_stream) {
+				throw std::runtime_error("Could not create audio stream");
+			}
+			if (avcodec_parameters_from_context(audio_stream->codecpar,
+			                                    audioEncoder.ctx) < 0) {
+				throw std::runtime_error(
+				    "Could not copy audio codec parameters");
+			}
+			audio_opened = true;
+			try_write_header();
+		}
+		if (has_wrote_header) {
+			for (auto &packet : packets) {
+				packet->stream_index = audio_stream->index;
+				if (av_interleaved_write_frame(fmt_ctx, packet.get()) < 0) {
+					throw std::runtime_error("Could not write audio frame");
+				}
+			}
+		}
+	}
+
+	void mux_video(std::shared_ptr<AVFrame> frame) {
+		std::lock_guard lock(mutex);
+
+		auto packets = videoEncoder.encode(frame);
+
+		if (frame && !video_opened) {
+			video_stream = avformat_new_stream(fmt_ctx, videoEncoder.encoder);
+			if (!video_stream) {
+				throw std::runtime_error("Could not create video stream");
+			}
+			if (avcodec_parameters_from_context(video_stream->codecpar,
+			                                    videoEncoder.ctx) < 0) {
+				throw std::runtime_error(
+				    "Could not copy video codec parameters");
+			}
+			video_opened = true;
+			try_write_header();
+		}
+		if (has_wrote_header) {
+			for (auto &packet : packets) {
+				packet->stream_index = video_stream->index;
+				if (av_interleaved_write_frame(fmt_ctx, packet.get()) < 0) {
+					throw std::runtime_error("Could not write video frame");
+				}
+			}
+		}
+	}
+
+	void stop() {
+		std::lock_guard lock(mutex);
+
+		if (!has_wrote_header) {
+			return;
+		}
+		if (audio_opened) {
+			mux_audio(nullptr);
+		}
+		if (video_opened) {
+			mux_video(nullptr);
+		}
+
+		av_write_trailer(fmt_ctx);
+		avio_closep(&fmt_ctx->pb);
+	}
+
+	~Muxer() { destroy(); }
 };
