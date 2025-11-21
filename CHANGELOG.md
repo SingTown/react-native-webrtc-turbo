@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0 (2025-11-21)
+
+* feat: add media recorder ([e4e85e0](https://github.com/SingTown/react-native-webrtc-turbo/commit/e4e85e0))
+* feat: remove internal queue ([1113252](https://github.com/SingTown/react-native-webrtc-turbo/commit/1113252))
+
 ## 0.9.0 (2025-10-07)
 
 * fix: transceiver stop crash ([18b8746](https://github.com/SingTown/react-native-webrtc-turbo/commit/18b8746))
