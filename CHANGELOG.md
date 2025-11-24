@@ -1,5 +1,9 @@
 # Changelog
 
+## <small>0.10.1 (2025-11-24)</small>
+
+* fix: improve fabric view ([071e20b](https://github.com/SingTown/react-native-webrtc-turbo/commit/071e20b))
+
 ## 0.10.0 (2025-11-21)
 
 * feat: add media recorder ([e4e85e0](https://github.com/SingTown/react-native-webrtc-turbo/commit/e4e85e0))
