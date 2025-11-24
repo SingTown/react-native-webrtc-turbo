@@ -8,7 +8,6 @@ static CameraSession *_sharedInstance = nil;
 @property(nonatomic, strong) AVCaptureSession *session;
 @property(nonatomic, strong) dispatch_queue_t sampleBufferQueue;
 @property(nonatomic, strong) NSMutableArray<NSString *> *pipes;
-@property(nonatomic, assign) int64_t ptsBase;
 
 @end
 
@@ -30,7 +29,6 @@ static CameraSession *_sharedInstance = nil;
 		self.sampleBufferQueue = dispatch_queue_create(
 		    "com.example.camera.queue", DISPATCH_QUEUE_SERIAL);
 		self.pipes = [NSMutableArray array];
-		self.ptsBase = -1;
 
 		NSError *error = nil;
 		if (![self setupCameraWithError:&error]) {
@@ -138,19 +136,12 @@ static CameraSession *_sharedInstance = nil;
            fromConnection:(AVCaptureConnection *)connection {
 
 	CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-	CMTime pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
-	int64_t pts_90k =
-	    (int64_t)round((double)pts.value * 90000.0 / pts.timescale);
-	if (self.ptsBase == -1) {
-		self.ptsBase = pts_90k;
-	}
 	CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 
 	size_t width = CVPixelBufferGetWidth(pixelBuffer);
 	size_t height = CVPixelBufferGetHeight(pixelBuffer);
 
-	int64_t fpts = pts_90k - self.ptsBase;
-	auto frame = createVideoFrame(AV_PIX_FMT_NV12, fpts, width, height);
+	auto frame = createVideoFrame(AV_PIX_FMT_NV12, width, height);
 	uint8_t *srcY =
 	    (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
 	uint8_t *srcUV =

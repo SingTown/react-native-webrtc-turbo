@@ -15,7 +15,7 @@ TEST(FramePipeTest, testCallback) {
 		    called = true;
 	    });
 
-	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 1, 48000, 2, 960);
+	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 48000, 2, 960);
 
 	ASSERT_FALSE(called);
 	publish("test_pipe", frame);
@@ -34,7 +34,7 @@ TEST(FramePipeTest, testCallbackNotMatch) {
 		    called = true;
 	    });
 
-	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 1, 48000, 2, 960);
+	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 48000, 2, 960);
 
 	ASSERT_FALSE(called);
 	publish("test_pipe2", frame);
@@ -65,7 +65,7 @@ TEST(FramePipeTest, testUnsubscribe) {
 	    {"test_pipe"}, [&count](std::string pipeId, int subId,
 	                            std::shared_ptr<AVFrame>) { count += 1; });
 
-	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 1, 48000, 2, 960);
+	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 48000, 2, 960);
 	publish("test_pipe", frame);
 	publish("test_pipe", frame);
 	publish("test_pipe", frame);
@@ -83,7 +83,7 @@ TEST(FramePipeTest, testUnsubscribeInCallback) {
 		    unsubscribe(subId);
 	    });
 
-	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 1, 48000, 2, 960);
+	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, 48000, 2, 960);
 	publish("test_pipe", frame);
 	publish("test_pipe", frame);
 	publish("test_pipe", frame);

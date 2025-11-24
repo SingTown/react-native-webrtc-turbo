@@ -43,14 +43,88 @@ static void fillNoise(std::shared_ptr<AVFrame> frame) {
 	}
 }
 
+static void delay(int milliseconds) {
+	auto target = globalBaseTime + std::chrono::milliseconds(milliseconds);
+	while (std::chrono::high_resolution_clock::now() < target) {
+	}
+}
+
+TEST(CurrentPtsTest, test90k) {
+	resetBaseTime();
+
+	auto tb = (AVRational){1, 90000};
+	auto pts1 = currentPts(tb);
+
+	delay(10);
+
+	auto pts2 = currentPts(tb);
+	ASSERT_NEAR(pts1, 0, 1);
+	ASSERT_NEAR(pts2, 900, 1);
+}
+
+TEST(CurrentPtsTest, test48K) {
+	resetBaseTime();
+
+	auto tb = (AVRational){1, 48000};
+	auto pts1 = currentPts(tb);
+
+	delay(10);
+
+	auto pts2 = currentPts(tb);
+	ASSERT_NEAR(pts1, 0, 1);
+	ASSERT_NEAR(pts2, 480, 1);
+}
+
+TEST(CreateAudioFrameTest, testCreateAudioFrame) {
+	auto frame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 2, 960);
+	ASSERT_EQ(frame->format, AV_SAMPLE_FMT_FLT);
+	ASSERT_EQ(frame->sample_rate, 48000);
+	ASSERT_EQ(frame->ch_layout.nb_channels, 2);
+	ASSERT_EQ(frame->nb_samples, 960);
+}
+
+TEST(CreateVideoFrameTest, testCreateVideoFrame) {
+	auto frame = createVideoFrame(AV_PIX_FMT_YUV420P, 1920, 1080);
+	ASSERT_EQ(frame->format, AV_PIX_FMT_YUV420P);
+	ASSERT_EQ(frame->width, 1920);
+	ASSERT_EQ(frame->height, 1080);
+}
+
+TEST(PtsTest, testCreateAudioFramePts) {
+	resetBaseTime();
+
+	auto frame1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 2, 1024);
+
+	delay(10);
+
+	auto frame2 = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 2, 1024);
+
+	ASSERT_NEAR(frame1->pts, 0, 1);
+	ASSERT_NEAR(frame2->pts, 480, 10);
+}
+
+TEST(PtsTest, testCreateVideoFramePts) {
+	resetBaseTime();
+
+	auto frame1 = createVideoFrame(AV_PIX_FMT_YUV420P, 1920, 1080);
+
+	delay(10);
+
+	auto frame2 = createVideoFrame(AV_PIX_FMT_YUV420P, 1920, 1080);
+
+	ASSERT_EQ(frame1->pts, 0);
+	ASSERT_NEAR(frame2->pts, 900, 10);
+}
+
 TEST(AudioFifoTest, testNomal) {
+	resetBaseTime();
+
 	AudioFifo fifo;
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 960);
 	fillNoise(inputFrame);
 
 	fifo.write(inputFrame);
 	auto outFrame = fifo.read(960);
-	ASSERT_EQ(outFrame->pts, 1);
 	ASSERT_EQ(outFrame->nb_samples, 960);
 	ASSERT_EQ(outFrame->format, AV_SAMPLE_FMT_FLT);
 	ASSERT_EQ(outFrame->sample_rate, 48000);
@@ -66,8 +140,8 @@ TEST(AudioFifoTest, testNull) {
 
 TEST(AudioFifoTest, testPts) {
 	AudioFifo fifo;
-	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
-	auto in2 = createAudioFrame(AV_SAMPLE_FMT_FLT, 961, 48000, 1, 960);
+	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 960, 1);
+	auto in2 = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 960, 961);
 	fifo.write(in1);
 	fifo.write(in2);
 	auto out1 = fifo.read(960);
@@ -77,7 +151,7 @@ TEST(AudioFifoTest, testPts) {
 }
 
 TEST(ResamplerTest, testResampleFormat) {
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 960);
 	fillNoise(inputFrame);
 
 	Resampler resampler;
@@ -104,7 +178,7 @@ TEST(ResamplerTest, testNull) {
 }
 
 TEST(ResamplerTest, testResamplePlanar) {
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 1, 48000, 2, 960);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 48000, 2, 960);
 	fillNoise(inputFrame);
 
 	Resampler resampler;
@@ -128,7 +202,7 @@ TEST(ResamplerTest, testResamplePlanar) {
 }
 
 TEST(ResamplerTest, testResampleChannels12) {
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 960);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 960);
 	fillNoise(inputFrame);
 
 	Resampler resampler;
@@ -150,7 +224,7 @@ TEST(ResamplerTest, testResampleChannels12) {
 }
 
 TEST(ResamplerTest, testResampleRate) {
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 16000, 1, 320);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 16000, 1, 320);
 	float *inData = (float *)inputFrame->data[0];
 
 	for (int i = 0; i < 320; ++i) {
@@ -165,7 +239,6 @@ TEST(ResamplerTest, testResampleRate) {
 	fifo.write(resampler.resample(inputFrame, AV_SAMPLE_FMT_FLT, 48000, 1));
 	fifo.write(resampler.resample(nullptr, AV_SAMPLE_FMT_FLT, 48000, 1));
 	auto outFrame = fifo.read(960);
-	ASSERT_EQ(outFrame->pts, 1);
 	ASSERT_EQ(outFrame->nb_samples, 960);
 	ASSERT_EQ(outFrame->ch_layout.nb_channels, 1);
 	ASSERT_EQ(outFrame->format, AV_SAMPLE_FMT_FLT);
@@ -178,8 +251,8 @@ TEST(ResamplerTest, testResampleRate) {
 }
 
 TEST(ResamplerTest, testPts) {
-	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 16000, 1, 320);
-	auto in2 = createAudioFrame(AV_SAMPLE_FMT_FLT, 321, 16000, 1, 320);
+	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 16000, 1, 320, 1);
+	auto in2 = createAudioFrame(AV_SAMPLE_FMT_FLT, 16000, 1, 320, 321);
 	fillNoise(in1);
 	fillNoise(in2);
 
@@ -192,29 +265,29 @@ TEST(ResamplerTest, testPts) {
 
 TEST(ScalerTest, test_RGB24_to_NV12) {
 	Scaler scaler;
-	auto inputFrame = createVideoFrame(AV_PIX_FMT_RGB24, 1, 640, 480);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_RGB24, 640, 480);
 	auto outFrame = scaler.scale(inputFrame, AV_PIX_FMT_NV12, 320, 240);
 
 	ASSERT_EQ(outFrame->format, AV_PIX_FMT_NV12);
 	ASSERT_EQ(outFrame->width, 320);
 	ASSERT_EQ(outFrame->height, 240);
-	ASSERT_EQ(outFrame->pts, 1);
+	ASSERT_EQ(outFrame->pts, inputFrame->pts);
 }
 
 TEST(ScalerTest, test_NV12_to_RGB24) {
 	Scaler scaler;
-	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 640, 480);
 	auto outFrame = scaler.scale(inputFrame, AV_PIX_FMT_RGB24, 320, 240);
 
 	ASSERT_EQ(outFrame->format, AV_PIX_FMT_RGB24);
 	ASSERT_EQ(outFrame->width, 320);
 	ASSERT_EQ(outFrame->height, 240);
-	ASSERT_EQ(outFrame->pts, 1);
+	ASSERT_EQ(outFrame->pts, inputFrame->pts);
 }
 
 TEST(EncoderTest, testEncodeOpus) {
 	Encoder encoder(AV_CODEC_ID_OPUS);
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 1, 48000, 2, 960);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 48000, 2, 960);
 	fillNoise(inputFrame);
 
 	std::vector<std::shared_ptr<AVPacket>> packets;
@@ -230,7 +303,7 @@ TEST(EncoderTest, testEncodeOpus) {
 
 TEST(EncoderTest, testEncodeOpusBigFrame) {
 	Encoder encoder(AV_CODEC_ID_OPUS);
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 1, 48000, 2, 960000);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLTP, 48000, 2, 960000);
 	fillNoise(inputFrame);
 
 	std::vector<std::shared_ptr<AVPacket>> packets;
@@ -246,7 +319,7 @@ TEST(EncoderTest, testEncodeOpusBigFrame) {
 
 TEST(EncoderTest, testEncodeH264) {
 	Encoder encoder(AV_CODEC_ID_H264);
-	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 640, 480);
 
 	std::vector<std::shared_ptr<AVPacket>> packets;
 	for (auto &pkt : encoder.encode(inputFrame)) {
@@ -261,7 +334,7 @@ TEST(EncoderTest, testEncodeH264) {
 
 TEST(EncoderTest, testEncodeH265) {
 	Encoder encoder(AV_CODEC_ID_H265);
-	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 640, 480);
 
 	std::vector<std::shared_ptr<AVPacket>> packets;
 	for (auto &pkt : encoder.encode(inputFrame)) {
@@ -276,7 +349,7 @@ TEST(EncoderTest, testEncodeH265) {
 
 TEST(EncoderTest, testEncodeAAC) {
 	Encoder encoder(AV_CODEC_ID_AAC);
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 1024);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 1024);
 	fillNoise(inputFrame);
 
 	std::vector<std::shared_ptr<AVPacket>> packets;
@@ -292,7 +365,7 @@ TEST(EncoderTest, testEncodeAAC) {
 
 TEST(EncoderTest, testEncodeAACBigFrame) {
 	Encoder encoder(AV_CODEC_ID_AAC);
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 1024000);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 1024000);
 	fillNoise(inputFrame);
 
 	std::vector<std::shared_ptr<AVPacket>> packets;
@@ -308,7 +381,7 @@ TEST(EncoderTest, testEncodeAACBigFrame) {
 
 TEST(EncoderTest, testEncodePng) {
 	Encoder encoder(AV_CODEC_ID_PNG);
-	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 640, 480);
 	std::string file = testing::TempDir() + "out.png";
 	// std::string file = "out.png";
 	FILE *f = fopen(file.c_str(), "wb");
@@ -326,7 +399,7 @@ TEST(EncoderTest, testEncodePng) {
 TEST(MuxerTest, testMuxerAAC) {
 	std::string file = testing::TempDir() + "/test_file.mp4";
 	Muxer muxer(file, AV_CODEC_ID_AAC, AV_CODEC_ID_NONE);
-	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 2048);
+	auto inputFrame = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 2048);
 	fillNoise(inputFrame);
 
 	muxer.mux_audio(inputFrame);
@@ -337,7 +410,7 @@ TEST(MuxerTest, testMuxerAAC) {
 TEST(MuxerTest, testMuxerH264) {
 	std::string file = testing::TempDir() + "/test_file.mp4";
 	Muxer muxer(file, AV_CODEC_ID_NONE, AV_CODEC_ID_H264);
-	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	auto inputFrame = createVideoFrame(AV_PIX_FMT_NV12, 640, 480);
 
 	muxer.mux_video(inputFrame);
 	muxer.stop();
@@ -347,8 +420,8 @@ TEST(MuxerTest, testMuxerH264) {
 TEST(MuxerTest, testMuxerVideo) {
 	std::string file = testing::TempDir() + "/test_file.mp4";
 	Muxer muxer(file, AV_CODEC_ID_AAC, AV_CODEC_ID_H264);
-	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 1, 48000, 1, 2048);
-	auto in2 = createVideoFrame(AV_PIX_FMT_NV12, 1, 640, 480);
+	auto in1 = createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 2048);
+	auto in2 = createVideoFrame(AV_PIX_FMT_NV12, 640, 480);
 	fillNoise(in1);
 
 	muxer.mux_audio(in1);
@@ -362,9 +435,9 @@ TEST(MuxerTest, testSaveMp4) {
 	Muxer muxer(file, AV_CODEC_ID_AAC, AV_CODEC_ID_H264);
 	for (int i = 0; i < 1000; ++i) {
 		auto in1 =
-		    createAudioFrame(AV_SAMPLE_FMT_FLT, i * 2048, 48000, 1, 2048);
+		    createAudioFrame(AV_SAMPLE_FMT_FLT, 48000, 1, 2048, i * 2048);
 		fillNoise(in1);
-		auto in2 = createVideoFrame(AV_PIX_FMT_NV12, i * 3000, 640, 480);
+		auto in2 = createVideoFrame(AV_PIX_FMT_NV12, 640, 480, i * 3000);
 		muxer.mux_audio(in1);
 		muxer.mux_video(in2);
 	}

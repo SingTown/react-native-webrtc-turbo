@@ -9,7 +9,6 @@ static AudioSession *_sharedInstance = nil;
 @property(nonatomic, strong) dispatch_queue_t audioOutQueue;
 @property(nonatomic, strong) NSMutableArray<NSString *> *microphonePipes;
 @property(nonatomic, assign) int subscriptionId;
-@property(nonatomic, assign) int64_t ptsBase;
 @property(nonatomic, strong) AVAudioSession *audioSession;
 @property(nonatomic, strong) AVAudioEngine *audioEngine;
 @property(nonatomic, strong) AVAudioPlayerNode *playerNode;
@@ -28,7 +27,6 @@ static AudioSession *_sharedInstance = nil;
 
 - (instancetype)init {
 	self = [super init];
-	self.ptsBase = -1;
 	self.subscriptionId = -1;
 	self.microphonePipes = [NSMutableArray array];
 	self.audioInQueue =
@@ -76,31 +74,26 @@ static AudioSession *_sharedInstance = nil;
 	                bufferSize:960
 	                    format:nil
 	                     block:^(AVAudioPCMBuffer *buffer, AVAudioTime *when) {
-		                   [self handleInputBuffer:buffer atTime:when];
+		                   [self handleInputBuffer:buffer];
 	                     }];
 	[self.audioEngine prepare];
 	[self.audioEngine startAndReturnError:nil];
 }
 
-- (void)handleInputBuffer:(AVAudioPCMBuffer *)buffer
-                   atTime:(AVAudioTime *)when {
+- (void)handleInputBuffer:(AVAudioPCMBuffer *)buffer {
 	if (self.microphonePipes.count == 0)
 		return;
-	if (self.ptsBase == -1) {
-		self.ptsBase = when.sampleTime;
-	}
 
 	std::shared_ptr<AVFrame> frame;
-	int pts = when.sampleTime - self.ptsBase;
 	if (buffer.format.isInterleaved) {
 		frame =
-		    createAudioFrame(AV_SAMPLE_FMT_FLT, pts, buffer.format.sampleRate,
+		    createAudioFrame(AV_SAMPLE_FMT_FLT, buffer.format.sampleRate,
 		                     buffer.format.channelCount, buffer.frameLength);
 		memcpy(frame->data[0], buffer.floatChannelData[0],
 		       buffer.frameLength * sizeof(float) * buffer.format.channelCount);
 	} else {
 		frame =
-		    createAudioFrame(AV_SAMPLE_FMT_FLTP, pts, buffer.format.sampleRate,
+		    createAudioFrame(AV_SAMPLE_FMT_FLTP, buffer.format.sampleRate,
 		                     buffer.format.channelCount, buffer.frameLength);
 		memcpy(frame->data[0], buffer.floatChannelData[0],
 		       buffer.frameLength * sizeof(float));
@@ -144,10 +137,10 @@ static AudioSession *_sharedInstance = nil;
 	}
 	auto resampler = std::make_shared<Resampler>();
 	std::string cppStr = [pipeId UTF8String];
-	subscribe({cppStr},
-	          [self, resampler](std::string, int, std::shared_ptr<AVFrame> frame) {
-		          [self playAudio:frame resampler:resampler];
-	          });
+	subscribe({cppStr}, [self, resampler](std::string, int,
+	                                      std::shared_ptr<AVFrame> frame) {
+		[self playAudio:frame resampler:resampler];
+	});
 	[self.audioSession setActive:YES error:nil];
 	[self.playerNode play];
 	[self.audioEngine startAndReturnError:nil];

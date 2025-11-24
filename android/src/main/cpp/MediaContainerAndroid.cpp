@@ -100,19 +100,12 @@ JNIEXPORT void JNICALL Java_com_webrtc_WebrtcFabricManager_unsubscribe(
 JNIEXPORT void JNICALL Java_com_webrtc_Camera_publish(JNIEnv *env, jobject,
                                                       jstring pipeId,
                                                       jobject image) {
-
-	static jlong baseTimestamp = 0;
-	static bool isFirstFrame = true;
-
 	jclass imageClass = env->GetObjectClass(image);
 	jmethodID getWidthMethod = env->GetMethodID(imageClass, "getWidth", "()I");
 	jmethodID getHeightMethod =
 	    env->GetMethodID(imageClass, "getHeight", "()I");
-	jmethodID getTimestampMethod =
-	    env->GetMethodID(imageClass, "getTimestamp", "()J");
 	jint width = env->CallIntMethod(image, getWidthMethod);
 	jint height = env->CallIntMethod(image, getHeightMethod);
-	jlong timestamp = env->CallLongMethod(image, getTimestampMethod);
 
 	jmethodID getPlanesMethod = env->GetMethodID(
 	    imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
@@ -147,13 +140,7 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_publish(JNIEnv *env, jobject,
 	jint vRowStride = env->CallIntMethod(vPlane, getRowStrideMethod);
 	jint vPixelStride = env->CallIntMethod(vPlane, getPixelStrideMethod);
 
-	if (isFirstFrame) {
-		baseTimestamp = timestamp;
-		isFirstFrame = false;
-	}
-
-	int pts = (timestamp - baseTimestamp) * 9 / 100000;
-	auto frame = createVideoFrame(AV_PIX_FMT_NV12, pts, width, height);
+	auto frame = createVideoFrame(AV_PIX_FMT_NV12, width, height);
 	// Copy Y
 	for (int y = 0; y < height; ++y) {
 		memcpy(frame->data[0] + y * frame->linesize[0],
@@ -183,21 +170,9 @@ JNIEXPORT void JNICALL Java_com_webrtc_Camera_publish(JNIEnv *env, jobject,
 
 JNIEXPORT void JNICALL Java_com_webrtc_Microphone_publish(
     JNIEnv *env, jobject, jstring pipeId, jbyteArray audioBuffer, jint size) {
-	static bool isFirstFrame = true;
-	static auto baseTimestamp = std::chrono::system_clock::now();
 
-	auto now = std::chrono::system_clock::now();
-	if (isFirstFrame) {
-		baseTimestamp = now;
-		isFirstFrame = false;
-	}
-
-	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-	              now - baseTimestamp)
-	              .count();
-
-	auto frame = createAudioFrame(AV_SAMPLE_FMT_S16, ms * 48, 48000, 1,
-	                              size / sizeof(int16_t));
+	auto frame =
+	    createAudioFrame(AV_SAMPLE_FMT_S16, 48000, 1, size / sizeof(int16_t));
 	jboolean isCopy = JNI_FALSE;
 	jbyte *audioData = env->GetByteArrayElements(audioBuffer, &isCopy);
 	memcpy(frame->data[0], audioData, size);

@@ -19,13 +19,30 @@ extern "C" {
 #undef AVMediaType
 }
 
+inline auto globalBaseTime = std::chrono::system_clock::now();
+
+inline void resetBaseTime() {
+	globalBaseTime = std::chrono::system_clock::now();
+}
+
+inline int currentPts(AVRational time_base) {
+	auto now = std::chrono::system_clock::now();
+	double seconds =
+	    std::chrono::duration<double>(now - globalBaseTime).count();
+	return seconds * time_base.den / time_base.num;
+}
+
 inline std::shared_ptr<AVPacket> createAVPacket() {
 	return std::shared_ptr<AVPacket>(av_packet_alloc(),
 	                                 [](AVPacket *f) { av_packet_free(&f); });
 }
 
-inline std::shared_ptr<AVFrame> createVideoFrame(AVPixelFormat format, int pts,
-                                                 int width, int height) {
+inline std::shared_ptr<AVFrame>
+createVideoFrame(AVPixelFormat format, int width, int height, int pts = -1) {
+	AVRational time_base = {1, 90000};
+	if (pts == -1) {
+		pts = currentPts(time_base);
+	}
 	auto frame = std::shared_ptr<AVFrame>(av_frame_alloc(), [](AVFrame *f) {
 		if (f) {
 			av_frame_free(&f);
@@ -35,6 +52,7 @@ inline std::shared_ptr<AVFrame> createVideoFrame(AVPixelFormat format, int pts,
 		throw std::runtime_error("Could not allocate AVFrame");
 	}
 	frame->format = format;
+	frame->time_base = (AVRational){1, 90000};
 	frame->pts = pts;
 	frame->width = width;
 	frame->height = height;
@@ -45,9 +63,13 @@ inline std::shared_ptr<AVFrame> createVideoFrame(AVPixelFormat format, int pts,
 	return frame;
 }
 
-inline std::shared_ptr<AVFrame> createAudioFrame(AVSampleFormat format, int pts,
+inline std::shared_ptr<AVFrame> createAudioFrame(AVSampleFormat format,
                                                  int sampleRate, int channels,
-                                                 int nb_samples) {
+                                                 int nb_samples, int pts = -1) {
+	AVRational time_base = {1, sampleRate};
+	if (pts == -1) {
+		pts = currentPts(time_base);
+	}
 	auto frame = std::shared_ptr<AVFrame>(av_frame_alloc(), [](AVFrame *f) {
 		if (f) {
 			av_frame_free(&f);
@@ -57,6 +79,7 @@ inline std::shared_ptr<AVFrame> createAudioFrame(AVSampleFormat format, int pts,
 		throw std::runtime_error("Could not allocate AVFrame");
 	}
 	frame->format = format;
+	frame->time_base = time_base;
 	frame->pts = pts;
 	frame->sample_rate = sampleRate;
 	frame->nb_samples = nb_samples;
@@ -86,7 +109,7 @@ class Scaler {
 			return frame;
 		}
 
-		auto dst = createVideoFrame(format, frame->pts, width, height);
+		auto dst = createVideoFrame(format, width, height, frame->pts);
 		sws_ctx = sws_getCachedContext(sws_ctx, frame->width, frame->height,
 		                               (AVPixelFormat)frame->format, dst->width,
 		                               dst->height, (AVPixelFormat)dst->format,
@@ -126,6 +149,7 @@ class Resampler {
 		this->outFormat = outFormat;
 		this->outChannels = outChannels;
 		this->outSampleRate = outSampleRate;
+		this->pts = frame->pts;
 
 		AVChannelLayout outLayout;
 		av_channel_layout_default(&outLayout, outChannels);
@@ -153,10 +177,6 @@ class Resampler {
 		if (!swr_ctx && !frame) {
 			return nullptr;
 		}
-		if (pts < 0 && frame) {
-			pts = frame->pts;
-		}
-
 		int in_nb_samples = frame ? frame->nb_samples : 0;
 		int outSamples = swr_get_out_samples(swr_ctx, in_nb_samples);
 
@@ -166,19 +186,15 @@ class Resampler {
 
 		std::shared_ptr<AVFrame> dst;
 		int ret = -1;
-
+		dst = createAudioFrame(outFormat, outSampleRate, outChannels,
+		                       outSamples, pts);
 		if (frame) {
-			dst = createAudioFrame(outFormat, frame->pts, outSampleRate,
-			                       outChannels, outSamples);
-
 			ret = swr_convert(swr_ctx, dst->data, dst->nb_samples, frame->data,
-			                  frame->nb_samples);
+			                  in_nb_samples);
 
 		} else {
-			dst = createAudioFrame(outFormat, 0, outSampleRate, outChannels,
-			                       outSamples);
-
-			ret = swr_convert(swr_ctx, dst->data, dst->nb_samples, nullptr, 0);
+			ret = swr_convert(swr_ctx, dst->data, dst->nb_samples, nullptr,
+			                  in_nb_samples);
 		}
 		dst->nb_samples = ret;
 		if (ret == 0) {
@@ -211,6 +227,7 @@ class AudioFifo {
 		format = (AVSampleFormat)frame->format;
 		channels = frame->ch_layout.nb_channels;
 		sample_rate = frame->sample_rate;
+		pts = frame->pts;
 		fifo = av_audio_fifo_alloc(format, channels, 1024);
 		if (!fifo) {
 			throw std::runtime_error("Could not allocate audio fifo");
@@ -239,9 +256,6 @@ class AudioFifo {
 		    frame->nb_samples) {
 			throw std::runtime_error("Could not write to audio fifo");
 		}
-		if (pts == -1) {
-			pts = frame->pts;
-		}
 	}
 
 	std::shared_ptr<AVFrame> read(int nb_samples = 960) {
@@ -255,7 +269,7 @@ class AudioFifo {
 		}
 
 		auto frame =
-		    createAudioFrame(format, pts, sample_rate, channels, nb_samples);
+		    createAudioFrame(format, sample_rate, channels, nb_samples, pts);
 
 		int ret = av_audio_fifo_read(fifo, (void **)frame->data, nb_samples);
 		if (ret < 0) {
@@ -263,9 +277,6 @@ class AudioFifo {
 		}
 
 		pts += nb_samples;
-		if (av_audio_fifo_size(fifo) == 0) {
-			pts = -1;
-		}
 
 		return frame;
 	}
@@ -284,12 +295,13 @@ class Encoder {
 	Resampler resampler;
 	AudioFifo fifo;
 	std::recursive_mutex mutex;
+	int basePts = -1;
 
 	void init(std::shared_ptr<AVFrame> frame) {
 		ctx = avcodec_alloc_context3(encoder);
 		if (!ctx)
 			throw std::runtime_error("Could not allocate AVCodecContext");
-
+		this->basePts = frame->pts;
 		if (encoder->id == AV_CODEC_ID_H264) {
 			printf("init H264 ctx\n");
 			ctx->codec_id = AV_CODEC_ID_H264;
@@ -432,6 +444,9 @@ class Encoder {
 
 		std::vector<std::shared_ptr<AVPacket>> packets;
 		for (auto &f : frames) {
+			if (f) {
+				f->pts -= this->basePts;
+			}
 			int ret = avcodec_send_frame(ctx, f.get());
 			if (ret < 0) {
 				throw std::runtime_error("Error sending frame");
