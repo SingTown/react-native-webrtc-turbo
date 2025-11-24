@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 (2025-11-24)
+
+* feat: add permission throw ([8388f0e](https://github.com/SingTown/react-native-webrtc-turbo/commit/8388f0e))
+* fix: encode pts ([ad6a81e](https://github.com/SingTown/react-native-webrtc-turbo/commit/ad6a81e))
+
 ## <small>0.10.1 (2025-11-24)</small>
 
 * fix: improve fabric view ([071e20b](https://github.com/SingTown/react-native-webrtc-turbo/commit/071e20b))
