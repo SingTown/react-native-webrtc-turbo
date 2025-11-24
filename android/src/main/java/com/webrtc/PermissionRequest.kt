@@ -36,12 +36,25 @@ fun requestPermission(context: ReactApplicationContext, name: String, promise: P
         grantResults: IntArray
       ): Boolean {
         if (requestCode == code) {
-          val granted = grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
-          promise.resolve(granted)
+          if (permissions.isEmpty() || grantResults.isEmpty()) {
+            promise.reject(
+              "NotAllowedError",
+              "Permission denied by user"
+            )
+            return true
+          }
+
+          if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            promise.resolve(true)
+          } else {
+            promise.reject(
+              "NotAllowedError",
+              "Permission denied by user"
+            )
+          }
           return true
         }
-        return false
+        return true
       }
     }
 

@@ -16,6 +16,7 @@ import {
   SafeAreaView,
   View,
   ScrollView,
+  Alert,
 } from 'react-native';
 import Tabs from './Tabs';
 
@@ -125,10 +126,15 @@ export default function SelfTest() {
       peerconnection2.setRemoteDescription(offer);
       setLocalDescription(offer.sdp || '');
 
-      localStream = await MediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      try {
+        localStream = await MediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      } catch (e) {
+        Alert.alert('Permission Error');
+        throw e;
+      }
 
       localStream.getTracks().forEach((track) => {
         peerconnection2!.addTransceiver(track, {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, StyleSheet, SafeAreaView, View } from 'react-native';
+import { Button, StyleSheet, SafeAreaView, View, Alert } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
@@ -32,11 +32,16 @@ export default function Camera() {
   useEffect(() => {
     let localStream: MediaStream | null = null;
     (async () => {
-      localStream = await MediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      setStream(localStream);
+      try {
+        localStream = await MediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        setStream(localStream);
+      } catch (e) {
+        Alert.alert('Permission Error');
+        throw e;
+      }
     })();
 
     return () => {
@@ -127,7 +132,6 @@ export default function Camera() {
                 return;
               }
               recording.stopRecording();
-              await new Promise((res) => setTimeout(res, 500));
               await CameraRoll.save(mp4path, { type: 'video' });
               console.log('Saved recording to camera roll');
               setRecording(null);

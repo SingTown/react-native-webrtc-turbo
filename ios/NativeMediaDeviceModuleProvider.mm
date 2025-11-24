@@ -26,14 +26,21 @@ RCT_EXPORT_MODULE()
 		resolve(@YES);
 		return;
 	} else if (authStatus == AVAuthorizationStatusNotDetermined) {
-		[AVCaptureDevice requestAccessForMediaType:permission
-		                         completionHandler:^(BOOL granted) {
-			                       dispatch_async(dispatch_get_main_queue(), ^{
-				                     resolve(@(granted));
-			                       });
-		                         }];
+		[AVCaptureDevice
+		    requestAccessForMediaType:permission
+		            completionHandler:^(BOOL granted) {
+			          dispatch_async(dispatch_get_main_queue(), ^{
+				        if (granted) {
+					        resolve(@YES);
+				        } else {
+					        reject(@"NotAllowedError",
+					               @"Permission denied by user", nil);
+				        }
+				        return;
+			          });
+		            }];
 	} else {
-		resolve(@NO);
+		reject(@"NotAllowedError", @"Permission denied by user", nil);
 		return;
 	}
 }

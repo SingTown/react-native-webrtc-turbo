@@ -14,18 +14,12 @@ async function getUserMedia(
   const msid = uuidv4();
   const mediaStream = new MediaStream(msid);
   if (constraints.video) {
-    const allow = await NativeMediaDevice.requestPermission('camera');
-    if (!allow) {
-      throw new Error('Camera permission denied');
-    }
+    await NativeMediaDevice.requestPermission('camera');
     const videoTrack = new MediaStreamTrack('camera');
     mediaStream.addTrack(videoTrack);
   }
   if (constraints.audio) {
-    const allow = await NativeMediaDevice.requestPermission('microphone');
-    if (!allow) {
-      throw new Error('Microphone permission denied');
-    }
+    await NativeMediaDevice.requestPermission('microphone');
     const audioTrack = new MediaStreamTrack('microphone');
     mediaStream.addTrack(audioTrack);
   }
