@@ -44,7 +44,7 @@ target_include_directories(
 target_link_libraries(
     datachannel-module
     jsi
-    jnigraphics
+    android
     log
     reactnative
     react_codegen_WebrtcSpec

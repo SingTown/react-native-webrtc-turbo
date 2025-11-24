@@ -8,6 +8,9 @@
 #import <react/renderer/components/WebrtcSpec/RCTComponentViewHelpers.h>
 
 #import "RCTFabricComponentsPlugins.h"
+#import <AVFoundation/AVFoundation.h>
+#import <CoreMedia/CoreMedia.h>
+#import <CoreVideo/CoreVideo.h>
 
 using namespace facebook::react;
 
@@ -17,11 +20,11 @@ using namespace facebook::react;
 
 @implementation WebrtcFabric {
 	UIView *_view;
-	UIImageView *_imageView;
-	CIContext *_ciContext;
+	AVSampleBufferDisplayLayer *_displayLayer;
 	std::string _currentVideoPipeId;
 	int _lastCallbackId;
 	std::string _currentAudioPipeId;
+	CMVideoFormatDescriptionRef _formatDescription;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider {
@@ -32,17 +35,20 @@ using namespace facebook::react;
 - (instancetype)initWithFrame:(CGRect)frame {
 	if (self = [super initWithFrame:frame]) {
 		_lastCallbackId = -1;
+		_formatDescription = NULL;
 
 		static const auto defaultProps =
 		    std::make_shared<const WebrtcFabricProps>();
 		_props = defaultProps;
 
 		_view = [[UIView alloc] init];
-		_imageView = [[UIImageView alloc] init];
-		_imageView.contentMode = UIViewContentModeScaleAspectFit;
-		[_view addSubview:_imageView];
 
-		_ciContext = [CIContext contextWithOptions:nil];
+		// 创建 AVSampleBufferDisplayLayer
+		_displayLayer = [[AVSampleBufferDisplayLayer alloc] init];
+		_displayLayer.videoGravity = AVLayerVideoGravityResizeAspect;
+		_displayLayer.backgroundColor = [UIColor blackColor].CGColor;
+		[_view.layer addSublayer:_displayLayer];
+
 		self.contentView = _view;
 	}
 
@@ -63,12 +69,13 @@ using namespace facebook::react;
 			unsubscribe(_lastCallbackId);
 		}
 		auto scaler = std::make_shared<Scaler>();
-		subscribe({_currentVideoPipeId},
-		          [self, scaler](std::string, int, std::shared_ptr<AVFrame> frame) {
-			          auto scaledFrame = scaler->scale(
-			              frame, AV_PIX_FMT_RGB24, frame->width, frame->height);
-			          [self updateVideoFrame:scaledFrame];
-		          });
+		subscribe(
+		    {_currentVideoPipeId},
+		    [self, scaler](std::string, int, std::shared_ptr<AVFrame> frame) {
+			    auto scaledFrame = scaler->scale(frame, AV_PIX_FMT_NV12,
+			                                     frame->width, frame->height);
+			    [self updateVideoFrame:scaledFrame];
+		    });
 	}
 	if (oldViewProps.audioPipeId != newViewProps.audioPipeId) {
 		_currentAudioPipeId = newViewProps.audioPipeId;
@@ -81,6 +88,15 @@ using namespace facebook::react;
 		    soundAddPipe:[NSString
 		                     stringWithUTF8String:_currentAudioPipeId.c_str()]];
 	}
+	if (oldViewProps.resizeMode != newViewProps.resizeMode) {
+		if (newViewProps.resizeMode == "cover") {
+			_displayLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+		} else if (newViewProps.resizeMode == "contain") {
+			_displayLayer.videoGravity = AVLayerVideoGravityResizeAspect;
+		} else if (newViewProps.resizeMode == "fill") {
+			_displayLayer.videoGravity = AVLayerVideoGravityResize;
+		}
+	}
 
 	[super updateProps:props oldProps:oldProps];
 }
@@ -91,12 +107,25 @@ using namespace facebook::react;
 	[audioSession
 	    soundRemovePipe:[NSString
 	                        stringWithUTF8String:_currentAudioPipeId.c_str()]];
+
+	if (_formatDescription) {
+		CFRelease(_formatDescription);
+		_formatDescription = NULL;
+	}
+	[_displayLayer flushAndRemoveImage];
+
 	[super prepareForRecycle];
+}
+
+- (void)dealloc {
+	if (_formatDescription) {
+		CFRelease(_formatDescription);
+	}
 }
 
 - (void)layoutSubviews {
 	[super layoutSubviews];
-	_imageView.frame = _view.bounds;
+	_displayLayer.frame = _view.bounds;
 }
 
 Class<RCTComponentViewProtocol> WebrtcFabricCls(void) {
@@ -108,49 +137,109 @@ Class<RCTComponentViewProtocol> WebrtcFabricCls(void) {
 		return;
 	}
 
-	int rgbBufferSize = frame->width * frame->height * 3;
-	uint8_t *rgbBuffer = (uint8_t *)malloc(rgbBufferSize);
-	for (int y = 0; y < frame->height; y++) {
-		uint8_t *src = frame->data[0] + y * frame->linesize[0];
-		uint8_t *dst = rgbBuffer + y * frame->width * 3;
-		memcpy(dst, src, frame->width * 3);
+	int width = frame->width;
+	int height = frame->height;
+
+	if (_formatDescription == NULL ||
+	    CMVideoFormatDescriptionGetDimensions(_formatDescription).width !=
+	        width ||
+	    CMVideoFormatDescriptionGetDimensions(_formatDescription).height !=
+	        height) {
+
+		if (_formatDescription) {
+			CFRelease(_formatDescription);
+		}
+
+		OSStatus status = CMVideoFormatDescriptionCreate(
+		    kCFAllocatorDefault,
+		    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, // NV12
+		    width, height, NULL, &_formatDescription);
+
+		if (status != noErr) {
+			NSLog(@"Failed to create format description: %d", status);
+			return;
+		}
 	}
 
-	CGDataProviderRef dataProvider = CGDataProviderCreateWithData(
-	    NULL, rgbBuffer, rgbBufferSize,
-	    [](void *info, const void *data, size_t size) { free((void *)data); });
-	CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-	CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaNone;
-	CGImageRef cgImage = CGImageCreate(frame->width,  // width
-	                                   frame->height, // height
-	                                   8,             // bitsPerComponent
-	                                   24, // bitsPerPixel (RGBA= 8*3)
-	                                   frame->width * 3, // bytesPerRow
-	                                   colorSpace,       // colorSpace
-	                                   bitmapInfo,       // bitmapInfo
-	                                   dataProvider,     // dataProvider
-	                                   NULL,             // decode
-	                                   false,            // shouldInterpolate
-	                                   kCGRenderingIntentDefault // intent
-	);
+	CVPixelBufferRef pixelBuffer = NULL;
+	NSDictionary *pixelBufferAttributes = @{
+		(NSString *)kCVPixelBufferPixelFormatTypeKey :
+		    @(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange),
+		(NSString *)kCVPixelBufferWidthKey : @(width),
+		(NSString *)kCVPixelBufferHeightKey : @(height),
+		(NSString *)kCVPixelBufferIOSurfacePropertiesKey : @{}
+	};
 
-	if (cgImage) {
-		CIImage *ciImage = [CIImage imageWithCGImage:cgImage];
-		CGImageRef outputCGImage =
-		    [self->_ciContext createCGImage:ciImage fromRect:ciImage.extent];
-		UIImage *uiImage = [UIImage imageWithCGImage:outputCGImage];
+	CVReturn result = CVPixelBufferCreate(
+	    kCFAllocatorDefault, width, height,
+	    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+	    (__bridge CFDictionaryRef)pixelBufferAttributes, &pixelBuffer);
 
-		dispatch_async(dispatch_get_main_queue(), ^{
-		  self->_imageView.image = uiImage;
-		  self->_imageView.frame = self->_view.bounds;
-		});
-
-		CGImageRelease(outputCGImage);
-		CGImageRelease(cgImage);
+	if (result != kCVReturnSuccess) {
+		NSLog(@"Failed to create pixel buffer: %d", result);
+		return;
 	}
 
-	CGColorSpaceRelease(colorSpace);
-	CGDataProviderRelease(dataProvider);
+	CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+
+	// COPY Y PLANE
+	uint8_t *yDestPlane =
+	    (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
+	size_t yDestBytesPerRow =
+	    CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+	uint8_t *ySrcPlane = frame->data[0];
+	size_t ySrcBytesPerRow = frame->linesize[0];
+
+	for (int row = 0; row < height; row++) {
+		memcpy(yDestPlane + row * yDestBytesPerRow,
+		       ySrcPlane + row * ySrcBytesPerRow, width);
+	}
+
+	// COPY UV PLANE
+	uint8_t *uvDestPlane =
+	    (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
+	size_t uvDestBytesPerRow =
+	    CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+	uint8_t *uvSrcPlane = frame->data[1];
+	size_t uvSrcBytesPerRow = frame->linesize[1];
+
+	for (int row = 0; row < height / 2; row++) {
+		memcpy(uvDestPlane + row * uvDestBytesPerRow,
+		       uvSrcPlane + row * uvSrcBytesPerRow, width);
+	}
+
+	CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+
+	CMSampleBufferRef sampleBuffer = NULL;
+	CMSampleTimingInfo timingInfo = {
+	    .duration = kCMTimeInvalid,
+	    .presentationTimeStamp =
+	        CMTimeMakeWithSeconds(CACurrentMediaTime(), 1000000000),
+	    .decodeTimeStamp = kCMTimeInvalid};
+
+	OSStatus status = CMSampleBufferCreateReadyWithImageBuffer(
+	    kCFAllocatorDefault, pixelBuffer, _formatDescription, &timingInfo,
+	    &sampleBuffer);
+
+	CVPixelBufferRelease(pixelBuffer);
+
+	if (status != noErr) {
+		NSLog(@"Failed to create sample buffer: %d", status);
+		return;
+	}
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+	  if (self->_displayLayer.status ==
+		  AVQueuedSampleBufferRenderingStatusFailed) {
+		  [self->_displayLayer flush];
+	  }
+
+	  if (self->_displayLayer.isReadyForMoreMediaData) {
+		  [self->_displayLayer enqueueSampleBuffer:sampleBuffer];
+	  }
+
+	  CFRelease(sampleBuffer);
+	});
 }
 
 @end

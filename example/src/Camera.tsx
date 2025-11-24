@@ -50,7 +50,7 @@ export default function Camera() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <WebrtcView style={styles.player} stream={stream} />
+        <WebrtcView style={styles.player} stream={stream} resizeMode="fill" />
         <View style={styles.buttonContainer}>
           <Button
             title="Enable Video"
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   player: {
-    height: 300,
+    height: 240,
   },
   buttonContainer: {
     height: 44,

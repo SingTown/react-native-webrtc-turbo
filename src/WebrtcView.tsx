@@ -4,6 +4,7 @@ import type { ViewStyle } from 'react-native';
 
 type WebrtcViewProps = {
   stream: MediaStream | null;
+  resizeMode?: 'contain' | 'cover' | 'fill';
   style?: ViewStyle;
 };
 
@@ -15,6 +16,7 @@ export function WebrtcView(props: WebrtcViewProps) {
       style={props.style}
       videoPipeId={videoTrack ? videoTrack._dstPipeId : ''}
       audioPipeId={audioTrack ? audioTrack._dstPipeId : ''}
+      resizeMode={props.resizeMode || 'contain'}
     />
   );
 }

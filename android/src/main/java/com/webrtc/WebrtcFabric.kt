@@ -10,6 +10,7 @@ class WebrtcFabric : TextureView, TextureView.SurfaceTextureListener {
   private var surface: Surface? = null
   private var width: Int = 720
   private var height: Int = 480
+  private var onSurfaceAvailable: ((Surface) -> Unit)? = null
 
   constructor(context: Context) : super(context) {
     init()
@@ -32,25 +33,20 @@ class WebrtcFabric : TextureView, TextureView.SurfaceTextureListener {
     setLayerType(LAYER_TYPE_HARDWARE, null)
   }
 
-  fun updateFrame(bitmap: Bitmap) {
-    try {
-      val canvas = lockCanvas() ?: return
-      canvas.let { c ->
-        c.drawColor(Color.BLACK)
-        val srcRect = Rect(0, 0, bitmap.width, bitmap.height)
-        val dstRect = Rect(0, 0, this.width, this.height)
-        c.drawBitmap(bitmap, srcRect, dstRect, null)
-        unlockCanvasAndPost(c)
-      }
-    } catch (e: Exception) {
-      e.printStackTrace()
-    }
+  fun getSurface(): Surface? {
+    return surface
+  }
+
+  fun setOnSurfaceAvailableListener(listener: (Surface) -> Unit) {
+    onSurfaceAvailable = listener
+    surface?.let { listener(it) }
   }
 
   override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
     this.width = width
     this.height = height
     this.surface = Surface(surface)
+    onSurfaceAvailable?.invoke(this.surface!!)
   }
 
   override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {

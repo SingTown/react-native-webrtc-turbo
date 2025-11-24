@@ -157,7 +157,11 @@ export default function SelfTest() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <WebrtcView style={styles.player} stream={stream} />
+        <WebrtcView
+          style={styles.player}
+          stream={stream}
+          resizeMode="contain"
+        />
         <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {activeTab === 'LocalSDP' ? (
@@ -238,7 +242,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   player: {
-    height: 300,
+    height: 240,
   },
   section: {
     flex: 1,

@@ -1,6 +1,7 @@
 #include "ffmpeg.h"
 #include "framepipe.h"
-#include <android/bitmap.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <chrono>
 #include <jni.h>
 #include <string>
@@ -16,66 +17,41 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
 }
 
 JNIEXPORT int JNICALL Java_com_webrtc_WebrtcFabricManager_subscribeVideo(
-    JNIEnv *env, jobject thiz, jstring pipeId) {
+    JNIEnv *env, jobject, jstring pipeId, jobject surface) {
+	if (!surface) {
+		throw std::invalid_argument("Surface is null");
+	}
 	auto scaler = std::make_shared<Scaler>();
-	jobject gFabricManager = env->NewGlobalRef(thiz);
-	auto callback = [gFabricManager, scaler](std::string, int,
-	                                         std::shared_ptr<AVFrame> raw) {
+	ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
+	if (!window) {
+		throw std::runtime_error("Failed to get ANativeWindow from Surface");
+	}
+
+	auto callback = [window, scaler](std::string, int,
+	                                 std::shared_ptr<AVFrame> raw) {
 		auto frame =
 		    scaler->scale(raw, AV_PIX_FMT_RGBA, raw->width, raw->height);
 
-		JNIEnv *env;
-		gJvm->AttachCurrentThread(&env, nullptr);
-		jclass bitmapConfigClass =
-		    env->FindClass("android/graphics/Bitmap$Config");
-		jfieldID argb8888FieldID = env->GetStaticFieldID(
-		    bitmapConfigClass, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
-		jobject bitmapConfig =
-		    env->GetStaticObjectField(bitmapConfigClass, argb8888FieldID);
-		jclass bitmapClass = env->FindClass("android/graphics/Bitmap");
-		jmethodID createBitmapMethodID = env->GetStaticMethodID(
-		    bitmapClass, "createBitmap",
-		    "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
-		jobject bitmap = env->CallStaticObjectMethod(
-		    bitmapClass, createBitmapMethodID, frame->width, frame->height,
-		    bitmapConfig);
-		AndroidBitmapInfo bitmapInfo;
-		int result = AndroidBitmap_getInfo(env, bitmap, &bitmapInfo);
-		if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
-			throw std::runtime_error("AndroidBitmap_getInfo failed");
+		ANativeWindow_setBuffersGeometry(window, frame->width, frame->height,
+		                                 WINDOW_FORMAT_RGBA_8888);
+
+		ANativeWindow_Buffer buffer;
+		if (ANativeWindow_lock(window, &buffer, nullptr) < 0) {
+			throw std::runtime_error("Failed to lock ANativeWindow");
 		}
 
-		void *pixels;
-		result = AndroidBitmap_lockPixels(env, bitmap, &pixels);
-		if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
-			throw std::runtime_error("AndroidBitmap_lockPixels failed");
-		}
-
+		uint8_t *dst = static_cast<uint8_t *>(buffer.bits);
 		for (int y = 0; y < frame->height; ++y) {
 			uint8_t *srcRow = frame->data[0] + y * frame->linesize[0];
-			uint8_t *dstRow =
-			    static_cast<uint8_t *>(pixels) + y * bitmapInfo.stride;
+			uint8_t *dstRow = dst + y * buffer.stride * 4;
 			memcpy(dstRow, srcRow, frame->width * 4);
 		}
-		AndroidBitmap_unlockPixels(env, bitmap);
-		env->DeleteLocalRef(bitmapConfigClass);
-		env->DeleteLocalRef(bitmapClass);
-		env->DeleteLocalRef(bitmapConfig);
 
-		// call
-		jclass fabricManagerClass = env->GetObjectClass(gFabricManager);
-		jmethodID updateFrameMethod = env->GetMethodID(
-		    fabricManagerClass, "updateFrame", "(Landroid/graphics/Bitmap;)V");
-		env->CallVoidMethod(gFabricManager, updateFrameMethod, bitmap);
-		env->DeleteLocalRef(fabricManagerClass);
-		env->DeleteLocalRef(bitmap);
+		ANativeWindow_unlockAndPost(window);
 	};
 
-	auto cleanup = [gFabricManager](int) {
-		JNIEnv *env;
-		gJvm->AttachCurrentThread(&env, nullptr);
-		env->DeleteGlobalRef(gFabricManager);
-	};
+	auto cleanup = [window](int) { ANativeWindow_release(window); };
+
 	std::string pipeIdStr(env->GetStringUTFChars(pipeId, nullptr));
 	return subscribe({pipeIdStr}, callback, cleanup);
 }

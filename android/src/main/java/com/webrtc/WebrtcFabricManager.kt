@@ -7,6 +7,7 @@ import android.os.Looper
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.view.Surface
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.uimanager.SimpleViewManager
@@ -23,13 +24,12 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
   WebrtcFabricManagerInterface<WebrtcFabric> {
   private val mDelegate: ViewManagerDelegate<WebrtcFabric>
 
-  private val frameHandler = Handler(Looper.getMainLooper())
-  private val frameExecutor: ExecutorService = Executors.newCachedThreadPool()
   private var currentView: WebrtcFabric? = null
   private var videoSubscriptionId: Int = -1
   private var audioSubscriptionId: Int = -1
   private var videoPipeId: String = ""
   private var audioPipeId: String = ""
+  private var resizeMode: String = "contain"
   private var audioTrack = AudioTrack(
     AudioManager.STREAM_MUSIC,
     48000,
@@ -43,25 +43,12 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
     AudioTrack.MODE_STREAM
   )
 
-  external fun subscribeVideo(pipeId: String): Int
+  external fun subscribeVideo(pipeId: String, surface: Surface?): Int
   external fun subscribeAudio(pipeId: String): Int
   external fun unsubscribe(subscriptionId: Int)
 
   init {
     mDelegate = WebrtcFabricManagerDelegate(this)
-  }
-
-  private fun updateFrame(bitmap: Bitmap) {
-    frameExecutor.execute {
-      currentView?.let { view ->
-        try {
-          view.updateFrame(bitmap)
-          bitmap.recycle()
-        } catch (e: Exception) {
-          Log.e("WebrtcFabric", "Error updating video frame", e)
-        }
-      }
-    }
   }
 
   override fun getDelegate(): ViewManagerDelegate<WebrtcFabric> {
@@ -76,18 +63,30 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
     return WebrtcFabric(context)
   }
 
-  @ReactProp(name = "videoPipeId")
-  override fun setVideoPipeId(view: WebrtcFabric, value: String?) {
-    currentView = view
-    var newVideoPipeId = value ?: ""
+  private fun applyVideoPipeId(surface: Surface?, newVideoPipeId: String) {
+    if (surface == null) {
+      return;
+    }
+    if (newVideoPipeId.isEmpty()) {
+      return;
+    }
     if (this.videoPipeId == newVideoPipeId) {
       return
     }
     if (this.videoSubscriptionId > 0) {
       this.unsubscribe(this.videoSubscriptionId)
     }
-    this.videoSubscriptionId = subscribeVideo(newVideoPipeId)
+    this.videoSubscriptionId = subscribeVideo(newVideoPipeId, surface)
     this.videoPipeId = newVideoPipeId
+  }
+
+  @ReactProp(name = "videoPipeId")
+  override fun setVideoPipeId(view: WebrtcFabric, value: String?) {
+    currentView = view
+    applyVideoPipeId(view.getSurface(), value ?: "")
+    view.setOnSurfaceAvailableListener { surface ->
+      applyVideoPipeId(surface, value ?: "")
+    }
   }
 
   @ReactProp(name = "audioPipeId")
@@ -105,6 +104,15 @@ class WebrtcFabricManager(context: ReactApplicationContext) : SimpleViewManager<
 
     this.audioSubscriptionId = subscribeAudio(current)
     this.audioPipeId = current
+  }
+
+  @ReactProp(name = "resizeMode")
+  override fun setResizeMode(view: WebrtcFabric, value: String?) {
+    val current = value ?: "contain"
+    val old = this.resizeMode
+    if (old == current) {
+      return
+    }
   }
 
   companion object {
