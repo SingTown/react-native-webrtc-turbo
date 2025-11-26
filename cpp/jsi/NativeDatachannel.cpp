@@ -54,66 +54,88 @@ NativeDatachannel::NativeDatachannel(std::shared_ptr<CallInvoker> jsInvoker)
 
 std::string NativeDatachannel::createPeerConnection(
     jsi::Runtime &, const std::vector<std::string> &servers) {
-	rtc::Configuration c;
-	for (const auto &server : servers) {
-		c.iceServers.emplace_back(server);
-	}
-	auto peerConnection = std::make_shared<rtc::PeerConnection>(c);
-	std::string pc = emplacePeerConnection(peerConnection);
+	try {
 
-	peerConnection->onStateChange([this, pc](rtc::PeerConnection::State state) {
-		ConnectionStateChangeEvent event{
-		    pc,
-		    state,
-		};
-		emitOnConnectionStateChange(event);
-	});
+		rtc::Configuration c;
+		for (const auto &server : servers) {
+			c.iceServers.emplace_back(server);
+		}
+		auto peerConnection = std::make_shared<rtc::PeerConnection>(c);
+		std::string pc = emplacePeerConnection(peerConnection);
 
-	peerConnection->onGatheringStateChange(
-	    [this, pc](rtc::PeerConnection::GatheringState state) {
-		    if (state == rtc::PeerConnection::GatheringState::Complete) {
-			    LocalCandidateEvent event{
+		peerConnection->onStateChange(
+		    [this, pc](rtc::PeerConnection::State state) {
+			    ConnectionStateChangeEvent event{
 			        pc,
-			        std::nullopt,
-			        std::nullopt,
+			        state,
 			    };
-			    emitOnLocalCandidate(event);
-		    }
+			    emitOnConnectionStateChange(event);
+		    });
 
-		    GatheringStateChangeEvent event{pc, state};
-		    emitOnGatheringStateChange(event);
-	    });
+		peerConnection->onGatheringStateChange(
+		    [this, pc](rtc::PeerConnection::GatheringState state) {
+			    if (state == rtc::PeerConnection::GatheringState::Complete) {
+				    LocalCandidateEvent event{
+				        pc,
+				        std::nullopt,
+				        std::nullopt,
+				    };
+				    emitOnLocalCandidate(event);
+			    }
 
-	peerConnection->onLocalCandidate([this, pc](rtc::Candidate cand) {
-		LocalCandidateEvent event{
-		    pc,
-		    cand.candidate(),
-		    cand.mid(),
-		};
-		emitOnLocalCandidate(event);
-	});
+			    GatheringStateChangeEvent event{pc, state};
+			    emitOnGatheringStateChange(event);
+		    });
 
-	return pc;
+		peerConnection->onLocalCandidate([this, pc](rtc::Candidate cand) {
+			LocalCandidateEvent event{
+			    pc,
+			    cand.candidate(),
+			    cand.mid(),
+			};
+			emitOnLocalCandidate(event);
+		});
+
+		return pc;
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 rtc::PeerConnection::GatheringState
 NativeDatachannel::getGatheringState(jsi::Runtime &, const std::string &pc) {
-	auto peerConnection = getPeerConnection(pc);
-	return peerConnection->gatheringState();
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		return peerConnection->gatheringState();
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 rtc::PeerConnection::State
 NativeDatachannel::getPeerConnectionState(jsi::Runtime &,
                                           const std::string &pc) {
-	auto peerConnection = getPeerConnection(pc);
-	return peerConnection->state();
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		return peerConnection->state();
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 void NativeDatachannel::closePeerConnection(jsi::Runtime &,
                                             const std::string &pc) {
-	auto peerConnection = getPeerConnection(pc);
-	peerConnection->close();
-	peerConnectionMap.erase(pc);
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		peerConnection->close();
+		peerConnectionMap.erase(pc);
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 std::string NativeDatachannel::createRTCRtpTransceiver(
@@ -122,95 +144,135 @@ std::string NativeDatachannel::createRTCRtpTransceiver(
     const std::string &recvPipeId, const std::vector<std::string> &msids,
     const std::optional<std::string> &trackid) {
 
-	auto peerConnection = getPeerConnection(pc);
-	auto track = addTransceiver(peerConnection, index, kind, direction,
-	                            sendPipeId, recvPipeId, msids, trackid);
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		auto track = addTransceiver(peerConnection, index, kind, direction,
+		                            sendPipeId, recvPipeId, msids, trackid);
 
-	return emplaceTrack(track);
+		return emplaceTrack(track);
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 void NativeDatachannel::stopRTCTransceiver(jsi::Runtime &,
                                            const std::string &tr) {
-	auto track = getTrack(tr);
-	if (track) {
-		track->close();
-		trackMap.erase(tr);
+	try {
+		auto track = getTrack(tr);
+		if (track) {
+			track->close();
+			trackMap.erase(tr);
+		}
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
 	}
 }
 
 std::string NativeDatachannel::createOffer(jsi::Runtime &,
                                            const std::string &pc) {
 
-	auto peerConnection = getPeerConnection(pc);
-	return peerConnection->createOffer();
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		return peerConnection->createOffer();
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 std::string NativeDatachannel::createAnswer(jsi::Runtime &,
                                             const std::string &pc) {
 
-	auto peerConnection = getPeerConnection(pc);
-	return peerConnection->createAnswer();
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		return peerConnection->createAnswer();
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 std::string NativeDatachannel::getLocalDescription(jsi::Runtime &,
                                                    const std::string &pc) {
-	auto peerConnection = getPeerConnection(pc);
-	auto sdp = peerConnection->localDescription();
-	if (!sdp.has_value()) {
-		return "";
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		auto sdp = peerConnection->localDescription();
+		if (!sdp.has_value()) {
+			return "";
+		}
+		return sdp->generateSdp();
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
 	}
-	return sdp->generateSdp();
 }
 
 void NativeDatachannel::setLocalDescription(jsi::Runtime &,
                                             const std::string &pc,
                                             const std::string &sdp) {
 
-	auto peerConnection = getPeerConnection(pc);
-	rtc::Description description(sdp);
-	peerConnection->setLocalDescription(description.type());
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		rtc::Description description(sdp);
+		peerConnection->setLocalDescription(description.type());
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 std::string NativeDatachannel::getRemoteDescription(jsi::Runtime &,
                                                     const std::string &pc) {
-	auto peerConnection = getPeerConnection(pc);
-	auto sdp = peerConnection->remoteDescription();
-	if (!sdp.has_value()) {
-		return "";
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		auto sdp = peerConnection->remoteDescription();
+		if (!sdp.has_value()) {
+			return "";
+		}
+		return sdp->generateSdp();
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
 	}
-	return sdp->generateSdp();
 }
 
 void NativeDatachannel::setRemoteDescription(jsi::Runtime &,
                                              const std::string &pc,
                                              const std::string &sdp) {
 
-	auto peerConnection = getPeerConnection(pc);
-	rtc::Description description(sdp);
-	peerConnection->setRemoteDescription(description);
-	for (int i = 0; i < description.mediaCount(); i++) {
-		auto media = getMediaFromIndex(description, i);
-		if (!media) {
-			continue;
-		}
-		if (media->direction() == rtc::Description::Direction::Inactive ||
-		    media->direction() == rtc::Description::Direction::RecvOnly) {
-			continue;
-		}
-		TrackEvent result;
-		result.pc = pc;
-		result.mid = media->mid();
-		result.trackId = "";
-		result.streamIds = {};
-		for (std::string &attr : media->attributes()) {
-			std::regex re(R"(msid:([^\s]+)\s+([^\s]+))");
-			std::smatch match;
-			if (std::regex_match(attr, match, re) && match.size() == 3) {
-				result.trackId = match[2];
-				result.streamIds.push_back(match[1]);
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		rtc::Description description(sdp);
+		peerConnection->setRemoteDescription(description);
+		for (int i = 0; i < description.mediaCount(); i++) {
+			auto media = getMediaFromIndex(description, i);
+			if (!media) {
+				continue;
 			}
+			if (media->direction() == rtc::Description::Direction::Inactive ||
+			    media->direction() == rtc::Description::Direction::RecvOnly) {
+				continue;
+			}
+			TrackEvent result;
+			result.pc = pc;
+			result.mid = media->mid();
+			result.trackId = "";
+			result.streamIds = {};
+			for (std::string &attr : media->attributes()) {
+				std::regex re(R"(msid:([^\s]+)\s+([^\s]+))");
+				std::smatch match;
+				if (std::regex_match(attr, match, re) && match.size() == 3) {
+					result.trackId = match[2];
+					result.streamIds.push_back(match[1]);
+				}
+			}
+			emitOnTrack(result);
 		}
-		emitOnTrack(result);
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
 	}
 }
 
@@ -218,85 +280,118 @@ void NativeDatachannel::addRemoteCandidate(jsi::Runtime &,
                                            const std::string &pc,
                                            const std::string &candidate,
                                            const std::string &mid) {
-	auto peerConnection = getPeerConnection(pc);
-	rtc::Candidate cand(candidate, mid);
-	peerConnection->addRemoteCandidate(cand);
+	try {
+		auto peerConnection = getPeerConnection(pc);
+		rtc::Candidate cand(candidate, mid);
+		peerConnection->addRemoteCandidate(cand);
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 int NativeDatachannel::forwardPipe(jsi::Runtime &,
                                    const std::string &fromPipeId,
                                    const std::string &toPipeId) {
-	return subscribe({fromPipeId}, [toPipeId](std::string, int,
-	                                          std::shared_ptr<AVFrame> frame) {
-		publish(toPipeId, frame);
-	});
+	try {
+		return subscribe(
+		    {fromPipeId},
+		    [toPipeId](std::string, int, std::shared_ptr<AVFrame> frame) {
+			    publish(toPipeId, frame);
+		    });
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 int NativeDatachannel::startRecording(jsi::Runtime &, const std::string &file,
                                       const std::string &audioPipeId,
                                       const std::string &videoPipeId) {
-	if (std::filesystem::path(file).extension() != ".mp4") {
-		throw std::invalid_argument("Only .png format is supported");
-	}
-	AVCodecID audioCodecId = AV_CODEC_ID_NONE;
-	AVCodecID videoCodecId = AV_CODEC_ID_NONE;
-	std::vector<std::string> pipeIds;
-	if (!audioPipeId.empty()) {
-		pipeIds.push_back(audioPipeId);
-		audioCodecId = AV_CODEC_ID_AAC;
-	}
-	if (!videoPipeId.empty()) {
-		pipeIds.push_back(videoPipeId);
-		videoCodecId = AV_CODEC_ID_H264;
-	}
 
-	auto muxer = std::make_shared<Muxer>(file, audioCodecId, videoCodecId);
-	auto callback = [muxer, audioPipeId,
-	                 videoPipeId](std::string pipeId, int,
-	                              std::shared_ptr<AVFrame> frame) {
-		if (pipeId == audioPipeId) {
-			muxer->mux_audio(frame);
+	try {
+		if (std::filesystem::path(file).extension() != ".mp4") {
+			throw std::invalid_argument("Only .mp4 format is supported c++");
 		}
-		if (pipeId == videoPipeId) {
-			muxer->mux_video(frame);
+		AVCodecID audioCodecId = AV_CODEC_ID_NONE;
+		AVCodecID videoCodecId = AV_CODEC_ID_NONE;
+		std::vector<std::string> pipeIds;
+		if (!audioPipeId.empty()) {
+			pipeIds.push_back(audioPipeId);
+			audioCodecId = AV_CODEC_ID_AAC;
 		}
-	};
+		if (!videoPipeId.empty()) {
+			pipeIds.push_back(videoPipeId);
+			videoCodecId = AV_CODEC_ID_H264;
+		}
 
-	auto cleanup = [muxer](int) { muxer->stop(); };
+		auto muxer = std::make_shared<Muxer>(file, audioCodecId, videoCodecId);
+		auto callback = [muxer, audioPipeId,
+		                 videoPipeId](std::string pipeId, int,
+		                              std::shared_ptr<AVFrame> frame) {
+			if (pipeId == audioPipeId) {
+				muxer->mux_audio(frame);
+			}
+			if (pipeId == videoPipeId) {
+				muxer->mux_video(frame);
+			}
+		};
 
-	return subscribe(pipeIds, callback, cleanup);
+		auto cleanup = [muxer](int) { muxer->stop(); };
+
+		return subscribe(pipeIds, callback, cleanup);
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 facebook::react::AsyncPromise<std::string>
 NativeDatachannel::takePhoto(jsi::Runtime &rt, const std::string &file,
                              const std::string &pipeId) {
-	if (std::filesystem::path(file).extension() != ".png") {
-		throw std::invalid_argument("Only .png format is supported");
-	}
-
-	auto promise = std::make_shared<facebook::react::AsyncPromise<std::string>>(
-	    rt, jsInvoker_);
-
-	auto encoder = std::make_shared<Encoder>(AV_CODEC_ID_PNG);
-	auto callback = [encoder, file, promise,
-	                 this](std::string, int subscriptionId,
-	                       std::shared_ptr<AVFrame> frame) {
-		FILE *f = fopen(file.c_str(), "wb");
-		for (auto &packet : encoder->encode(frame)) {
-			fwrite(packet->data, 1, packet->size, f);
+	FILE *f = nullptr;
+	try {
+		if (std::filesystem::path(file).extension() != ".png") {
+			throw std::invalid_argument("Only .png format is supported");
 		}
-		fclose(f);
-		::unsubscribe(subscriptionId);
-		this->jsInvoker_->invokeAsync(
-		    [promise, file](jsi::Runtime &) { promise->resolve(file); });
-	};
+		f = fopen(file.c_str(), "wb");
+		if (!f) {
+			throw std::invalid_argument("Failed to open file " + file +
+			                            " for writing");
+		}
+		auto promise =
+		    std::make_shared<facebook::react::AsyncPromise<std::string>>(
+		        rt, jsInvoker_);
 
-	subscribe({pipeId}, callback, nullptr);
-	return *promise;
+		auto encoder = std::make_shared<Encoder>(AV_CODEC_ID_PNG);
+		auto callback = [encoder, f, promise,
+		                 this](std::string, int subscriptionId,
+		                       std::shared_ptr<AVFrame> frame) {
+			for (auto &packet : encoder->encode(frame)) {
+				fwrite(packet->data, 1, packet->size, f);
+			}
+			fclose(f);
+			::unsubscribe(subscriptionId);
+			this->jsInvoker_->invokeAsync(
+			    [promise](jsi::Runtime &) { promise->resolve(""); });
+		};
+
+		subscribe({pipeId}, callback, nullptr);
+		return *promise;
+	} catch (const std::exception &e) {
+		fclose(f);
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 void NativeDatachannel::unsubscribe(jsi::Runtime &, int subscriptionId) {
-	::unsubscribe(subscriptionId);
+	try {
+		::unsubscribe(subscriptionId);
+	} catch (const std::exception &e) {
+		jsInvoker_->invokeAsync([&]() { throw e; });
+		throw e;
+	}
 }
 
 } // namespace facebook::react

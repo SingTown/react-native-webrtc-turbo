@@ -543,7 +543,6 @@ class Muxer {
 
 	AVStream *audio_stream = nullptr;
 	AVStream *video_stream = nullptr;
-	std::chrono::system_clock::time_point timestamp;
 	bool has_wrote_header = false;
 	bool audio_opened = false;
 	bool video_opened = false;
@@ -581,8 +580,6 @@ class Muxer {
 	    : audioEncoder(audioCodecId), videoEncoder(videoCodecId) {
 
 		std::lock_guard lock(mutex);
-
-		timestamp = std::chrono::system_clock::now();
 
 		if (avformat_alloc_output_context2(&fmt_ctx, NULL, NULL, path.c_str()) <
 		    0) {
